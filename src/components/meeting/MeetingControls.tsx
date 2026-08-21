@@ -23,6 +23,8 @@ import {
   X,
   ChevronUp,
   Headphones,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import { AudioDeviceMenu } from "./AudioDeviceMenu";
 
@@ -38,6 +40,8 @@ interface MeetingControlsProps {
   isFocusView?: boolean;
   isHost?: boolean;
   isRecording?: boolean;
+  isVisible?: boolean;
+  isFullscreen?: boolean;
   onToggleMic: () => void;
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
@@ -51,6 +55,7 @@ interface MeetingControlsProps {
   onCopyLink?: () => void;
   onToggleRecord?: () => void;
   onFlipCamera?: () => void;
+  onToggleFullscreen?: () => void;
 }
 
 const EMOJI_LIST = ["👍", "👏", "❤️", "🎉", "🔥", "😂", "✋", "😮"];
@@ -66,6 +71,8 @@ export function MeetingControls({
   participantCount = 1,
   isFocusView = false,
   isHost = false,
+  isVisible = true,
+  isFullscreen = false,
   onToggleMic,
   onToggleVideo,
   onToggleScreenShare,
@@ -78,6 +85,7 @@ export function MeetingControls({
   onEndMeetingForAll,
   onCopyLink,
   onFlipCamera,
+  onToggleFullscreen,
 }: MeetingControlsProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLeaveMenu, setShowLeaveMenu] = useState(false);
@@ -95,9 +103,15 @@ export function MeetingControls({
 
   return (
     <>
-      {/* Floating Bottom Control Bar */}
-      <div className="fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center pointer-events-auto w-full px-2 sm:px-0 sm:w-auto max-w-[100vw] sm:max-w-[96vw] pb-[env(safe-area-inset-bottom,0px)] select-none">
-        <div className="glass-control-bar flex items-center justify-between sm:justify-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-4 py-2 text-white w-full sm:w-auto shadow-2xl border border-white/10 backdrop-blur-2xl bg-[#0E1626]/95">
+      {/* Floating Bottom Control Bar with Auto-Hide Transition */}
+      <div
+        className={`fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center w-full px-2 sm:px-0 sm:w-auto max-w-[100vw] sm:max-w-[96vw] pb-[env(safe-area-inset-bottom,0px)] select-none transition-all duration-300 ${
+          isVisible
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-10 pointer-events-none"
+        }`}
+      >
+        <div className="glass-control-bar flex items-center justify-between sm:justify-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-4 py-2 text-white w-full sm:w-auto shadow-2xl border border-white/10 backdrop-blur-2xl bg-[#0E1628]/95">
           
           {/* 1. Microphone with Device Selector */}
           <div className="relative flex items-center shrink-0">
@@ -246,29 +260,29 @@ export function MeetingControls({
             </span>
           </button>
 
-          {/* 8. View Mode (Desktop Only) */}
+          {/* 8. Fullscreen (Desktop Only) */}
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              className="hidden lg:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+            >
+              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+              <span className="mt-0.5 text-[11px] font-medium">{isFullscreen ? "Exit" : "Full"}</span>
+            </button>
+          )}
+
+          {/* 9. View Mode (Desktop Only) */}
           <button
             type="button"
             onClick={onToggleViewMode}
-            className="hidden lg:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
+            className="hidden xl:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
             title={isFocusView ? "Grid View" : "Speaker Focus View"}
           >
             {isFocusView ? <LayoutGrid className="h-5 w-5" /> : <Square className="h-5 w-5" />}
             <span className="mt-0.5 text-[11px] font-medium">{isFocusView ? "Grid" : "Focus"}</span>
           </button>
-
-          {/* 9. Copy Link (Desktop Only) */}
-          {onCopyLink && (
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="hidden xl:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
-              title="Copy Meeting Invite Link"
-            >
-              {copied ? <Check className="h-5 w-5 text-emerald-400" /> : <Copy className="h-5 w-5" />}
-              <span className="mt-0.5 text-[11px] font-medium">{copied ? "Copied" : "Invite"}</span>
-            </button>
-          )}
 
           {/* 10. Mobile More Button (⋯) */}
           <button
@@ -379,6 +393,21 @@ export function MeetingControls({
 
             {/* Action Grid */}
             <div className="grid grid-cols-2 gap-2.5 pt-1">
+              {/* Fullscreen / Landscape Mode on Mobile */}
+              {onToggleFullscreen && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleFullscreen();
+                    setShowMobileMore(false);
+                  }}
+                  className="flex items-center gap-2.5 rounded-xl bg-indigo-600/30 border border-indigo-500/40 p-3 text-xs font-semibold text-white hover:bg-indigo-600/50 cursor-pointer touch-manipulation active:scale-95 col-span-2"
+                >
+                  {isFullscreen ? <Minimize className="h-4.5 w-4.5 text-indigo-300" /> : <Maximize className="h-4.5 w-4.5 text-indigo-300" />}
+                  <span>{isFullscreen ? "Exit Fullscreen" : "Full Screen / Landscape Mode"}</span>
+                </button>
+              )}
+
               {/* Audio Devices (Bluetooth / System) */}
               <button
                 type="button"
@@ -386,7 +415,7 @@ export function MeetingControls({
                   setShowMobileMore(false);
                   setShowAudioDevices(true);
                 }}
-                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 cursor-pointer touch-manipulation active:scale-95 col-span-2 border border-indigo-500/20"
+                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 cursor-pointer touch-manipulation active:scale-95 col-span-2 border border-white/10"
               >
                 <Headphones className="h-4.5 w-4.5 text-indigo-400" />
                 <span>Audio Devices (Bluetooth / System)</span>

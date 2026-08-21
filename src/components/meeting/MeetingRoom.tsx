@@ -33,6 +33,8 @@ import {
   Check,
   Share2,
   Sparkles,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 
@@ -93,13 +95,58 @@ function MeetingRoomInner({
   const [coHosts, setCoHosts] = useState<string[]>([]);
   const [waitingUsers, setWaitingUsers] = useState<WaitingUser[]>([]);
 
-  // Meeting Duration Timer
+  // Meeting Duration Timer & Fullscreen/Auto-Hide Controls
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [participantToast, setParticipantToast] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const publishedInitialRef = useRef(false);
-  const prevCountRef = useRef(participants.length);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const krispProcessorRef = useRef<any>(null);
+
+  // Auto-hide controls after 3.5 seconds of inactivity
+  const resetControlsTimeout = useCallback(() => {
+    setShowControls(true);
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    hideTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3500);
+  }, []);
+
+  useEffect(() => {
+    resetControlsTimeout();
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [resetControlsTimeout]);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        }
+        setIsFullscreen(true);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (screen.orientation && "lock" in screen.orientation) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (screen.orientation as any).lock("landscape").catch(() => {});
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.warn("Fullscreen toggle notice:", err);
+    }
+  };
 
   // Initialize Krisp AI Deep-Learning Noise Filter
   useEffect(() => {
@@ -115,18 +162,6 @@ function MeetingRoomInner({
         console.warn("Krisp AI noise filter load notice:", err);
       });
   }, []);
-
-  useEffect(() => {
-    if (participants.length > prevCountRef.current && prevCountRef.current > 0) {
-      const latest = participants[participants.length - 1];
-      const name = latest?.name || latest?.identity || "Someone";
-      setParticipantToast(`${name} joined the room`);
-      const timer = setTimeout(() => setParticipantToast(null), 4000);
-      prevCountRef.current = participants.length;
-      return () => clearTimeout(timer);
-    }
-    prevCountRef.current = participants.length;
-  }, [participants]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -527,78 +562,56 @@ function MeetingRoomInner({
       <RoomAudioRenderer />
 
       {/* Top Floating Info Bar */}
-      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-20 flex items-center justify-between pointer-events-none">
-        {/* Left: Meeting Title & Timer */}
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-900/90 px-4 py-2 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
-            <VideoIcon className="h-4.5 w-4.5" />
-          </div>
-          <div>
-            <h2 className="text-xs sm:text-sm font-bold text-white max-w-[180px] sm:max-w-xs truncate">
-              {meetingTitle || roomName}
-            </h2>
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
-              <span>{formatTimer(elapsedSeconds)}</span>
-              <span>•</span>
-              <span className="text-indigo-300">Room: {roomName}</span>
-            </div>
-          </div>
+      {/* Minimal Floating Top Pill (Auto-Hides) */}
+      <div
+        className={`absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex items-center justify-between pointer-events-none transition-all duration-300 ${
+          showControls
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 -translate-y-8 pointer-events-none"
+        }`}
+      >
+        {/* Minimal Meeting Info */}
+        <div className="flex items-center gap-2 rounded-full bg-slate-950/85 px-3.5 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-bold text-white max-w-[130px] sm:max-w-xs truncate">
+            {meetingTitle || roomName}
+          </span>
+          <span className="text-slate-400 font-mono text-[11px]">
+            • {formatTimer(elapsedSeconds)}
+          </span>
         </div>
 
-        {/* Right: Copy Meeting Link & Security Indicators */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        {/* Right Actions: Quick Share & Fullscreen */}
+        <div className="flex items-center gap-1.5 pointer-events-auto">
           <button
             type="button"
             onClick={handleCopyMeetingLink}
-            className="flex items-center gap-1.5 rounded-2xl bg-indigo-600/90 hover:bg-indigo-600 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white border border-indigo-400/30 backdrop-blur-xl shadow-lg transition active:scale-95 cursor-pointer"
-            title="Click to copy invitation link"
+            className="flex items-center gap-1.5 rounded-full bg-indigo-600/90 hover:bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md transition active:scale-95 cursor-pointer shadow-md"
+            title="Copy Invite Link"
           >
             {copiedLink ? (
               <>
-                <Check className="h-4 w-4 text-emerald-300" />
-                <span className="text-emerald-200">Link Copied!</span>
+                <Check className="h-3.5 w-3.5 text-emerald-300" />
+                <span className="text-emerald-200 text-[11px]">Copied</span>
               </>
             ) : (
               <>
-                <Share2 className="h-4 w-4 text-indigo-200" />
-                <span className="hidden sm:inline">Invite / Copy Link</span>
-                <span className="sm:hidden">Share</span>
+                <Share2 className="h-3.5 w-3.5 text-indigo-200" />
+                <span className="hidden sm:inline text-[11px]">Share</span>
               </>
             )}
           </button>
 
-          <div className="flex items-center gap-2 rounded-2xl bg-slate-900/90 px-3.5 py-2 border border-white/10 backdrop-blur-xl shadow-lg">
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              {connectionState === ConnectionState.Connected ? (
-                <>
-                  <span className="flex items-center gap-1.5 text-emerald-400 font-semibold text-xs sm:text-sm">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="hidden md:inline">SFU Live</span>
-                  </span>
-                  <div className="h-3.5 w-px bg-white/20 hidden sm:block" />
-                  <span className="hidden sm:flex items-center gap-1 text-[11px] text-indigo-300 font-medium bg-indigo-500/15 px-2 py-0.5 rounded-md border border-indigo-400/20">
-                    <Sparkles className="w-3 h-3 text-indigo-300" />
-                    <span>HD Noise Cancel</span>
-                  </span>
-                </>
-              ) : (
-                <span className="flex items-center gap-1 text-amber-400 font-medium text-xs">
-                  <WifiOff className="h-4 w-4" />
-                  <span>Connecting...</span>
-                </span>
-              )}
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="flex items-center justify-center h-7.5 w-7.5 sm:h-8 sm:w-8 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-white/10 backdrop-blur-md transition active:scale-95 cursor-pointer shadow-md"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+          >
+            {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+          </button>
         </div>
       </div>
-
-      {/* Dynamic Participant Join Notification Toast */}
-      {participantToast && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-2xl bg-indigo-600/95 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-2xl backdrop-blur-xl border border-indigo-400/40 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-          <span>{participantToast}</span>
-        </div>
-      )}
 
       {/* Host Waiting Room Banner */}
       {isHost && (
@@ -610,8 +623,17 @@ function MeetingRoomInner({
         />
       )}
 
-      {/* Main Video Area */}
-      <div className="relative flex-1 w-full h-full pt-16 pb-24 sm:pb-28">
+      {/* Main Full-Bleed Video Area (Tap to reveal/hide controls) */}
+      <div
+        onClick={() => {
+          if (!showControls) {
+            resetControlsTimeout();
+          } else {
+            setShowControls(false);
+          }
+        }}
+        className="relative flex-1 w-full h-full p-1 sm:p-2 cursor-pointer"
+      >
         {screenShareTrack ? (
           <ScreenShareView
             screenTrack={screenShareTrack}
@@ -634,7 +656,7 @@ function MeetingRoomInner({
       {/* Floating Reactions Overlay */}
       <ReactionsOverlay reactions={reactions} />
 
-      {/* Floating Bottom Controls */}
+      {/* Floating Bottom Controls (Auto-Hides) */}
       <MeetingControls
         isMuted={!localParticipant?.isMicrophoneEnabled}
         isVideoMuted={!localParticipant?.isCameraEnabled}
@@ -646,6 +668,8 @@ function MeetingRoomInner({
         participantCount={participants.length}
         isFocusView={isFocusView}
         isHost={isHost}
+        isVisible={showControls}
+        isFullscreen={isFullscreen}
         onToggleMic={handleToggleMic}
         onToggleVideo={handleToggleVideo}
         onToggleScreenShare={handleToggleScreenShare}
@@ -663,6 +687,7 @@ function MeetingRoomInner({
         isRecording={isRecording}
         onToggleRecord={() => setIsRecording(!isRecording)}
         onFlipCamera={handleFlipCamera}
+        onToggleFullscreen={toggleFullscreen}
       />
 
       {/* Slide-out Panels */}
