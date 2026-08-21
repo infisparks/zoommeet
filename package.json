@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "server": "node server/app.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -12,6 +13,8 @@
     "@livekit/components-react": "^2.9.24",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "livekit-client": "^2.22.0",
     "livekit-server-sdk": "^2.18.0",
     "lucide-react": "^1.33.0",
