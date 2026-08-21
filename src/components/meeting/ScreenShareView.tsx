@@ -28,7 +28,7 @@ export function ScreenShareView({
   isLocalSharing = false,
   onStopShare,
 }: ScreenShareViewProps) {
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("pip");
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("screenOnly");
   const [pipPosition, setPipPosition] = useState<"bottom-right" | "bottom-left" | "top-right">("bottom-right");
 
   const sharerName =

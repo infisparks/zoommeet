@@ -35,6 +35,7 @@ import {
   Sparkles,
   Maximize,
   Minimize,
+  Users,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 
@@ -124,6 +125,26 @@ function MeetingRoomInner({
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [resetControlsTimeout]);
+
+  // Auto-detect mobile landscape orientation: auto-hide UI to maximize video/screen share
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleOrientation = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      if (isLandscape) {
+        setShowControls(false);
+      }
+    };
+
+    window.addEventListener("orientationchange", handleOrientation);
+    window.addEventListener("resize", handleOrientation);
+
+    return () => {
+      window.removeEventListener("orientationchange", handleOrientation);
+      window.removeEventListener("resize", handleOrientation);
+    };
+  }, []);
 
   const toggleFullscreen = async () => {
     try {
@@ -571,13 +592,18 @@ function MeetingRoomInner({
         }`}
       >
         {/* Minimal Meeting Info */}
-        <div className="flex items-center gap-2 rounded-full bg-slate-950/85 px-3.5 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
+        <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-3.5 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-bold text-white max-w-[130px] sm:max-w-xs truncate">
+          <span className="font-bold text-white max-w-[120px] sm:max-w-xs truncate">
             {meetingTitle || roomName}
           </span>
           <span className="text-slate-400 font-mono text-[11px]">
             • {formatTimer(elapsedSeconds)}
+          </span>
+          <div className="h-3 w-px bg-white/20" />
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/20">
+            <Users className="w-3 h-3 text-indigo-400" />
+            <span>{participants.length}</span>
           </span>
         </div>
 
