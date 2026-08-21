@@ -32,7 +32,16 @@ import {
   RotateCcw,
   Check,
   Share2,
+  Sparkles,
 } from "lucide-react";
+
+export const ZOOM_HD_AUDIO_OPTIONS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  channelCount: 1,
+  sampleRate: 48000,
+};
 
 interface MeetingRoomProps {
   serverUrl: string;
@@ -121,7 +130,7 @@ function MeetingRoomInner({
     publishedInitialRef.current = true;
 
     if (initialAudio && !localParticipant.isMicrophoneEnabled) {
-      localParticipant.setMicrophoneEnabled(true).catch(err => {
+      localParticipant.setMicrophoneEnabled(true, ZOOM_HD_AUDIO_OPTIONS).catch(err => {
         console.warn("Initial microphone publish notice:", err);
       });
     }
@@ -255,7 +264,11 @@ function MeetingRoomInner({
     if (!localParticipant) return;
     try {
       const isCurrentlyEnabled = localParticipant.isMicrophoneEnabled;
-      await localParticipant.setMicrophoneEnabled(!isCurrentlyEnabled);
+      if (!isCurrentlyEnabled) {
+        await localParticipant.setMicrophoneEnabled(true, ZOOM_HD_AUDIO_OPTIONS);
+      } else {
+        await localParticipant.setMicrophoneEnabled(false);
+      }
     } catch (err) {
       console.warn("Microphone toggle notice:", err);
     }
@@ -441,12 +454,19 @@ function MeetingRoomInner({
           </button>
 
           <div className="flex items-center gap-2 rounded-2xl bg-slate-900/90 px-3.5 py-2 border border-white/10 backdrop-blur-xl shadow-lg">
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-xs sm:text-sm">
               {connectionState === ConnectionState.Connected ? (
-                <span className="flex items-center gap-2 text-emerald-400 font-semibold text-xs sm:text-sm">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="hidden md:inline">SFU Live</span>
-                </span>
+                <>
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-semibold text-xs sm:text-sm">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="hidden md:inline">SFU Live</span>
+                  </span>
+                  <div className="h-3.5 w-px bg-white/20 hidden sm:block" />
+                  <span className="hidden sm:flex items-center gap-1 text-[11px] text-indigo-300 font-medium bg-indigo-500/15 px-2 py-0.5 rounded-md border border-indigo-400/20">
+                    <Sparkles className="w-3 h-3 text-indigo-300" />
+                    <span>HD Noise Cancel</span>
+                  </span>
+                </>
               ) : (
                 <span className="flex items-center gap-1 text-amber-400 font-medium text-xs">
                   <WifiOff className="h-4 w-4" />
@@ -608,6 +628,18 @@ export function MeetingRoom({
       connect={true}
       audio={false}
       video={false}
+      options={{
+        publishDefaults: {
+          audioPreset: {
+            maxBitrate: 64000,
+          },
+          dtx: true,
+          red: true,
+        },
+        audioCaptureDefaults: ZOOM_HD_AUDIO_OPTIONS,
+        adaptiveStream: true,
+        dynacast: true,
+      }}
       data-lk-theme="default"
       className="h-screen w-screen bg-[#070B14]"
       onError={err => {

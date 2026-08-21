@@ -76,9 +76,18 @@ export function PreJoin({
     async function initMedia() {
       try {
         setPermissionError(null);
+        const audioConstraints: MediaTrackConstraints = {
+          echoCancellation: { ideal: true },
+          noiseSuppression: { ideal: true },
+          autoGainControl: { ideal: true },
+          sampleRate: { ideal: 48000 },
+          channelCount: { ideal: 1 },
+          ...(selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : {}),
+        };
+
         const constraints: MediaStreamConstraints = {
           video: selectedVideoInput ? { deviceId: { exact: selectedVideoInput } } : true,
-          audio: selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : true,
+          audio: audioConstraints,
         };
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
