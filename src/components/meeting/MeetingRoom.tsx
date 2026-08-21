@@ -10,6 +10,7 @@ import {
   useConnectionState,
   useDataChannel,
   RoomAudioRenderer,
+  isTrackReference,
 } from "@livekit/components-react";
 import { Track, ConnectionState } from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
@@ -26,7 +27,6 @@ import {
   Video as VideoIcon,
   WifiOff,
   AlertTriangle,
-  KeyRound,
   ArrowLeft,
   RotateCcw,
 } from "lucide-react";
@@ -101,13 +101,13 @@ function MeetingRoomInner({
 
     if (initialAudio) {
       localParticipant.setMicrophoneEnabled(true).catch(err => {
-        console.warn("Initial microphone publish skipped (no hardware or permission):", err);
+        console.warn("Initial microphone publish notice:", err);
       });
     }
 
     if (initialVideo) {
       localParticipant.setCameraEnabled(true).catch(err => {
-        console.warn("Initial camera publish skipped (no hardware or permission):", err);
+        console.warn("Initial camera publish notice:", err);
       });
     }
   }, [localParticipant, initialAudio, initialVideo]);
@@ -160,7 +160,7 @@ function MeetingRoomInner({
         onLeave();
       } else if (data.type === "force_mute") {
         if (localParticipant && localParticipant.identity === data.targetIdentity) {
-          localParticipant.setMicrophoneEnabled(false);
+          localParticipant.setMicrophoneEnabled(false).catch(() => {});
         }
       }
     } catch (e) {
@@ -177,10 +177,15 @@ function MeetingRoomInner({
   ]);
 
   const cameraTracks = tracks.filter(t => t.source === Track.Source.Camera);
-  const screenShareTrack = tracks.find(t => t.source === Track.Source.ScreenShare);
+  const screenShareTrack = tracks.find(
+    t => t.source === Track.Source.ScreenShare && isTrackReference(t) && t.publication?.track
+  );
 
-  const isLocalScreenSharing =
-    screenShareTrack?.participant.identity === localParticipant?.identity;
+  const isLocalScreenSharing = Boolean(
+    localParticipant &&
+    screenShareTrack &&
+    screenShareTrack.participant.identity === localParticipant.identity
+  );
 
   // Media Controls Actions
   const handleToggleMic = async () => {
@@ -189,7 +194,7 @@ function MeetingRoomInner({
       const isCurrentlyEnabled = localParticipant.isMicrophoneEnabled;
       await localParticipant.setMicrophoneEnabled(!isCurrentlyEnabled);
     } catch (err) {
-      alert("Microphone hardware was not found or access was denied.");
+      console.warn("Microphone toggle notice:", err);
     }
   };
 
@@ -199,7 +204,7 @@ function MeetingRoomInner({
       const isCurrentlyEnabled = localParticipant.isCameraEnabled;
       await localParticipant.setCameraEnabled(!isCurrentlyEnabled);
     } catch (err) {
-      alert("Camera hardware was not found or access was denied.");
+      console.warn("Camera toggle notice:", err);
     }
   };
 
@@ -207,9 +212,18 @@ function MeetingRoomInner({
     if (!localParticipant) return;
     try {
       const isSharing = localParticipant.isScreenShareEnabled;
-      await localParticipant.setScreenShareEnabled(!isSharing);
-    } catch (e) {
-      console.warn("Screen share cancelled or failed:", e);
+      if (isSharing) {
+        await localParticipant.setScreenShareEnabled(false);
+      } else {
+        await localParticipant.setScreenShareEnabled(true, {
+          audio: false,
+          selfBrowserSurface: "include",
+          surfaceSwitching: "include",
+        });
+      }
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.warn("Screen share notice (not fatal):", err?.message || err);
     }
   };
 
@@ -318,41 +332,41 @@ function MeetingRoomInner({
     : false;
 
   return (
-    <div className="relative flex h-screen w-full flex-col bg-slate-950 text-white overflow-hidden select-none">
+    <div className="relative flex h-screen w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif]">
       {/* Audio Renderer for remote audio tracks */}
       <RoomAudioRenderer />
 
       {/* Top Floating Info Bar */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-20 flex items-center justify-between pointer-events-none">
         {/* Left: Meeting Title & Timer */}
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-900/80 px-4 py-2 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white">
-            <VideoIcon className="h-4 w-4" />
+        <div className="flex items-center gap-3 rounded-2xl bg-slate-900/90 px-4 py-2 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+            <VideoIcon className="h-4.5 w-4.5" />
           </div>
           <div>
-            <h2 className="text-xs font-bold text-slate-100 max-w-[200px] sm:max-w-xs truncate">
+            <h2 className="text-xs sm:text-sm font-bold text-white max-w-[180px] sm:max-w-xs truncate">
               {meetingTitle || roomName}
             </h2>
-            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
               <span>{formatTimer(elapsedSeconds)}</span>
               <span>•</span>
-              <span className="text-slate-300">Room: {roomName}</span>
+              <span className="text-indigo-300">Room: {roomName}</span>
             </div>
           </div>
         </div>
 
         {/* Right: Security & Network Indicators */}
-        <div className="flex items-center gap-2 rounded-2xl bg-slate-900/80 px-3.5 py-2 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg">
-          <div className="flex items-center gap-1.5 text-xs">
+        <div className="flex items-center gap-2 rounded-2xl bg-slate-900/90 px-3.5 py-2 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg">
+          <div className="flex items-center gap-1.5 text-xs sm:text-sm">
             {connectionState === ConnectionState.Connected ? (
-              <span className="flex items-center gap-1.5 text-emerald-400 font-medium text-[11px]">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden sm:inline">HD Encrypted</span>
+              <span className="flex items-center gap-2 text-emerald-400 font-semibold text-xs sm:text-sm">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="hidden sm:inline">Encrypted SFU</span>
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-amber-400 font-medium text-[11px]">
-                <WifiOff className="h-3.5 w-3.5" />
-                <span>Connecting...</span>
+              <span className="flex items-center gap-1 text-amber-400 font-medium text-xs">
+                <WifiOff className="h-4 w-4" />
+                <span>Reconnecting...</span>
               </span>
             )}
           </div>
@@ -370,7 +384,7 @@ function MeetingRoomInner({
       )}
 
       {/* Main Video Area */}
-      <div className="relative flex-1 w-full h-full pt-16 pb-24">
+      <div className="relative flex-1 w-full h-full pt-16 pb-24 sm:pb-28">
         {screenShareTrack ? (
           <ScreenShareView
             screenTrack={screenShareTrack}
@@ -463,7 +477,7 @@ export function MeetingRoom({
 
   if (connectError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-white relative overflow-hidden">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-white relative overflow-hidden font-[Poppins,sans-serif]">
         <div className="relative z-10 w-full max-w-lg rounded-2xl border border-rose-500/30 bg-slate-900/95 p-8 text-center shadow-2xl backdrop-blur-md space-y-5">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
             <AlertTriangle className="h-7 w-7" />
@@ -505,23 +519,26 @@ export function MeetingRoom({
       audio={false}
       video={false}
       data-lk-theme="default"
-      className="h-screen w-screen bg-slate-950"
+      className="h-screen w-screen bg-[#070B14]"
       onError={err => {
-        // Only set error on signal/auth failures, not missing webcam/mic hardware
-        const msg = err.message || "";
+        const msg = err?.message || "";
+        // Only trigger fatal disconnect on genuine signal/auth failures
         if (
-          !msg.includes("Requested device not found") &&
-          !msg.includes("NotFoundError") &&
-          !msg.includes("Permission denied") &&
-          !msg.includes("NotAllowedError")
+          msg.includes("token signature is invalid") ||
+          msg.includes("invalid token") ||
+          msg.includes("could not establish signal connection")
         ) {
-          console.error("LiveKit connection failure:", err);
-          setConnectError(msg || "Connection to LiveKit server failed.");
+          console.error("Fatal LiveKit auth failure:", err);
+          setConnectError(msg || "Authentication token rejected by LiveKit server.");
         } else {
-          console.warn("Hardware device access notice:", msg);
+          // Media/permission/cancel errors are non-fatal and should never disconnect
+          console.warn("LiveKit non-fatal event:", msg);
         }
       }}
-      onDisconnected={onLeave}
+      onDisconnected={() => {
+        console.log("Disconnected from room");
+        onLeave();
+      }}
     >
       <MeetingRoomInner
         roomName={roomName}
