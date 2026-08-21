@@ -8,9 +8,7 @@ import { WaitingRoomAttendeeView } from "@/components/meeting/WaitingRoom";
 import { useAuth } from "@/contexts/AuthContext";
 import { meetingService, meetingHistoryService } from "@/lib/services";
 import { Meeting } from "@/types";
-import { branding } from "@/config/branding";
 import { AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 
 interface PageProps {
   params: Promise<{ meetingId: string }>;
@@ -79,7 +77,6 @@ export default function MeetingRoomPage({ params }: PageProps) {
     // Check waiting room
     if (meeting?.waitingRoomEnabled && !isHost) {
       setIsWaiting(true);
-      // Wait for host simulation or token proceed
     }
 
     setInitialAudio(audioEnabled);
@@ -89,13 +86,19 @@ export default function MeetingRoomPage({ params }: PageProps) {
       const roomName = meeting?.roomName || meetingId;
       const role = isHost ? "host" : "participant";
 
+      // ALWAYS generate a unique participant identity per tab/device to prevent collisions
+      const deviceRandom = Math.random().toString(36).substring(2, 7);
+      const uniqueIdentity = user?.id
+        ? `${user.id}_${deviceRandom}`
+        : `guest_${deviceRandom}_${Date.now().toString().slice(-4)}`;
+
       const res = await fetch("/api/livekit/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomName,
           participantName: displayName,
-          participantIdentity: user?.id || `guest_${Math.random().toString(36).substring(2, 8)}`,
+          participantIdentity: uniqueIdentity,
           role,
         }),
       });
@@ -130,9 +133,9 @@ export default function MeetingRoomPage({ params }: PageProps) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white font-[Poppins,sans-serif]">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
           <p className="text-sm font-medium text-slate-400">Loading meeting room details...</p>
         </div>
       </div>
@@ -169,7 +172,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
 
   // Pre-Join Check Screen
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-slate-950 text-white font-[Poppins,sans-serif]">
       {joinError && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xl">
           <AlertCircle className="h-4 w-4" />

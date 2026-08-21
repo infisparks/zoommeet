@@ -34,13 +34,13 @@ export function ScreenShareView({
   const isRealTrack = isTrackReference(screenTrack);
 
   return (
-    <div className="flex h-full w-full flex-col gap-3 p-3 sm:p-4">
+    <div className="flex h-full w-full flex-col gap-2.5 p-2 sm:p-4">
       {/* Top Sharer Notification Banner */}
-      <div className="flex items-center justify-between rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2 text-xs text-white backdrop-blur-md">
+      <div className="flex items-center justify-between rounded-xl bg-slate-900/90 border border-slate-800 px-3.5 py-2 text-xs sm:text-sm text-white backdrop-blur-md shrink-0">
         <div className="flex items-center gap-2">
-          <Monitor className="h-4 w-4 text-blue-400" />
-          <span>
-            <strong className="text-slate-100">{sharerName}</strong> is sharing their screen
+          <Monitor className="h-4 w-4 text-indigo-400 shrink-0" />
+          <span className="truncate">
+            <strong className="text-white">{sharerName}</strong> is sharing their screen
           </span>
         </div>
         {isLocalSharing && onStopShare && (
@@ -48,7 +48,7 @@ export function ScreenShareView({
             size="sm"
             variant="danger"
             onClick={onStopShare}
-            className="h-7 text-xs"
+            className="h-8 text-xs px-3 shrink-0"
           >
             <StopCircle className="w-3.5 h-3.5 mr-1" />
             <span>Stop Sharing</span>
@@ -57,22 +57,22 @@ export function ScreenShareView({
       </div>
 
       {/* Main Screen Share Stage */}
-      <div className="relative flex-1 min-h-0 w-full rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center">
+      <div className="relative flex-1 min-h-[40vh] w-full rounded-2xl bg-black border-2 border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center">
         {isRealTrack ? (
           <VideoTrack
             trackRef={screenTrack as TrackReference}
             className="h-full w-full object-contain"
           />
         ) : (
-          <div className="text-slate-500 text-xs">Waiting for video feed...</div>
+          <div className="text-slate-400 text-xs sm:text-sm">Connecting to screen feed...</div>
         )}
       </div>
 
       {/* Participant Video Filmstrip at Bottom */}
       {cameraTracks.length > 0 && (
-        <div className="flex h-28 sm:h-36 w-full gap-3 overflow-x-auto pb-1 shrink-0">
+        <div className="flex h-24 sm:h-36 w-full gap-2.5 overflow-x-auto pb-1 shrink-0">
           {cameraTracks.map(track => (
-            <div key={track.participant.identity + track.source} className="h-full aspect-video shrink-0">
+            <div key={track.participant.identity + track.source} className="h-full aspect-video shrink-0 min-w-[120px]">
               <ParticipantTile
                 trackRef={track}
                 isHost={track.participant.identity === hostIdentity}
