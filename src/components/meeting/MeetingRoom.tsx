@@ -134,6 +134,9 @@ function MeetingRoomInner({
       const isLandscape = window.innerWidth > window.innerHeight;
       if (isLandscape) {
         setShowControls(false);
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
       }
     };
 
@@ -601,10 +604,18 @@ function MeetingRoomInner({
             • {formatTimer(elapsedSeconds)}
           </span>
           <div className="h-3 w-px bg-white/20" />
-          <span className="flex items-center gap-1 text-[11px] font-semibold text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-full border border-indigo-500/20">
-            <Users className="w-3 h-3 text-indigo-400" />
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              setIsParticipantsOpen(true);
+            }}
+            className="flex items-center gap-1 text-[11px] font-bold text-indigo-200 bg-indigo-600/30 hover:bg-indigo-600/60 px-2.5 py-0.5 rounded-full border border-indigo-400/30 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-xs"
+            title="Click to view all attendees"
+          >
+            <Users className="w-3.5 h-3.5 text-indigo-300" />
             <span>{participants.length}</span>
-          </span>
+          </button>
         </div>
 
         {/* Right Actions: Quick Share & Fullscreen */}
