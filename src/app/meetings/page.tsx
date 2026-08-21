@@ -7,7 +7,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
+import { Badge, Avatar } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { meetingService } from "@/lib/services";
 import { Meeting } from "@/types";
@@ -25,6 +25,7 @@ import {
   Lock,
   ShieldCheck,
   Edit2,
+  MoreVertical,
 } from "lucide-react";
 
 export default function MeetingsPage() {
@@ -85,17 +86,17 @@ export default function MeetingsPage() {
   return (
     <DashboardLayout
       title="Meetings Directory"
-      subtitle="Manage, start, and organize all your upcoming and archived video conferences."
+      subtitle="Manage, start, and organize all your upcoming and past conferences."
     >
-      <div className="space-y-6">
+      <div className="space-y-5">
         {/* Controls & Search Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="w-full sm:w-80">
             <Input
-              placeholder="Search meetings by topic or ID..."
+              placeholder="Search by topic, host, or ID..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              leftIcon={<Search className="w-4 h-4" />}
+              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
             />
           </div>
 
@@ -105,8 +106,25 @@ export default function MeetingsPage() {
               size="sm"
               onClick={() => router.push("/schedule")}
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 mr-1" />
               <span>Schedule</span>
+            </Button>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={async () => {
+                const meeting = await meetingService.createMeeting({
+                  title: "Instant LiveKit Meeting",
+                  hostId: "user-1",
+                  hostName: "Alex Morgan",
+                  hostEmail: "alex@infiplus.in",
+                });
+                router.push(`/meeting/${meeting.meetingId}`);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              <span>Start Instant</span>
             </Button>
           </div>
         </div>
@@ -115,95 +133,71 @@ export default function MeetingsPage() {
         <Tabs
           tabs={[
             { id: "upcoming", label: "Upcoming Meetings", count: upcomingMeetings.length },
-            { id: "past", label: "Past / Recorded History", count: pastMeetings.length },
+            { id: "past", label: "Previous History", count: pastMeetings.length },
           ]}
           activeTab={activeTab}
           onChange={setActiveTab}
         />
 
-        {/* Meeting Cards List */}
+        {/* Meeting List / Cards */}
         {filteredList.length === 0 ? (
-          <Card className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
-              <Video className="h-6 w-6" />
+          <Card className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-2">
+              <Calendar className="h-5 w-5" />
             </div>
             <h4 className="text-sm font-semibold text-slate-800">
               No {activeTab} meetings found
             </h4>
             <p className="text-xs text-slate-500 max-w-sm mt-1">
               {searchQuery
-                ? "Try searching with a different term."
+                ? `No meetings match "${searchQuery}". Try another keyword.`
                 : activeTab === "upcoming"
-                ? "Schedule your next meeting to see it appear here."
-                : "Meetings you host or complete will be archived here."}
+                ? "You have no upcoming meetings scheduled."
+                : "Your past conference history will appear here."}
             </p>
-            {activeTab === "upcoming" && (
-              <div className="mt-4">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => router.push("/schedule")}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Schedule Meeting</span>
-                </Button>
-              </div>
-            )}
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-3.5">
-            {filteredList.map(meeting => (
+          <div className="space-y-3">
+            {filteredList.map(m => (
               <div
-                key={meeting.id}
-                onClick={() => router.push(`/meeting/${meeting.meetingId}`)}
-                className="group flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border border-slate-200 bg-white p-4.5 transition-all hover:border-blue-300 hover:shadow-xs cursor-pointer gap-4"
+                key={m.id}
+                onClick={() => router.push(`/meeting/${m.meetingId}`)}
+                className="group flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-indigo-300 hover:shadow-xs cursor-pointer gap-3"
               >
-                <div className="flex items-start gap-4 min-w-0">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                     <Video className="h-5 w-5" />
                   </div>
+
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-semibold text-sm text-slate-900 truncate">
-                        {meeting.title}
+                        {m.title}
                       </h4>
-                      {meeting.status === "live" && (
-                        <Badge variant="success" size="sm">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                          Live Now
-                        </Badge>
-                      )}
-                      {meeting.waitingRoomEnabled && (
+                      {m.waitingRoomEnabled && (
                         <Badge variant="warning" size="sm">
                           <ShieldCheck className="w-3 h-3" />
                           Waiting Room
                         </Badge>
                       )}
-                      {meeting.passwordEnabled && (
+                      {m.passwordEnabled && (
                         <Badge variant="secondary" size="sm">
                           <Lock className="w-3 h-3" />
-                          Passcode
+                          Passcode Protected
                         </Badge>
                       )}
                     </div>
-                    {meeting.description && (
-                      <p className="text-xs text-slate-500 truncate max-w-xl mt-0.5">
-                        {meeting.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-2 flex-wrap">
-                      <span className="font-medium text-slate-700 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        {formatScheduledDate(meeting.scheduledAt || meeting.createdAt)}
+
+                    <div className="flex items-center gap-2.5 text-xs text-slate-500 mt-1 flex-wrap">
+                      <span className="font-medium text-slate-700">
+                        {formatScheduledDate(m.scheduledAt || m.createdAt)}
                       </span>
                       <span>•</span>
-                      <span>{meeting.durationMinutes || 45} mins</span>
+                      <span>{m.durationMinutes || 45} mins</span>
                       <span>•</span>
-                      <span>Host: {meeting.hostName}</span>
+                      <span className="font-mono text-slate-400">ID: {m.meetingId}</span>
                       <span>•</span>
-                      <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-[11px] text-slate-700">
-                        {meeting.meetingId}
-                      </span>
+                      <span>Host: {m.hostName}</span>
                     </div>
                   </div>
                 </div>
@@ -212,14 +206,14 @@ export default function MeetingsPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={e => handleCopy(meeting.meetingId, e)}
+                    onClick={e => handleCopy(m.meetingId, e)}
                   >
-                    {copiedId === meeting.meetingId ? (
+                    {copiedId === m.meetingId ? (
                       <Check className="w-3.5 h-3.5 text-emerald-600" />
                     ) : (
                       <Copy className="w-3.5 h-3.5 text-slate-500" />
                     )}
-                    <span>{copiedId === meeting.meetingId ? "Copied" : "Copy Link"}</span>
+                    <span>{copiedId === m.meetingId ? "Copied" : "Copy Link"}</span>
                   </Button>
 
                   <Button
@@ -227,65 +221,64 @@ export default function MeetingsPage() {
                     variant="primary"
                     onClick={e => {
                       e.stopPropagation();
-                      router.push(`/meeting/${meeting.meetingId}`);
+                      router.push(`/meeting/${m.meetingId}`);
                     }}
                   >
                     <Play className="w-3.5 h-3.5" />
-                    <span>{activeTab === "upcoming" ? "Start / Join" : "Re-open"}</span>
+                    <span>{activeTab === "upcoming" ? "Start" : "Re-join"}</span>
                   </Button>
 
                   <button
                     onClick={e => {
                       e.stopPropagation();
-                      setEditingMeeting(meeting);
-                      setEditTitle(meeting.title);
+                      setEditingMeeting(m);
+                      setEditTitle(m.title);
                     }}
-                    title="Edit Meeting"
-                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                    title="Edit topic"
+                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
 
                   <button
-                    onClick={e => handleDelete(meeting.id, e)}
+                    onClick={e => handleDelete(m.id, e)}
                     title="Delete meeting"
-                    className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                    className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-
-        {/* Edit Modal */}
-        {editingMeeting && (
-          <Modal
-            isOpen={!!editingMeeting}
-            onClose={() => setEditingMeeting(null)}
-            title="Edit Meeting Topic"
-            description={`Meeting ID: ${editingMeeting.meetingId}`}
-          >
-            <div className="space-y-4 pt-1">
-              <Input
-                label="Meeting Title"
-                value={editTitle}
-                onChange={e => setEditTitle(e.target.value)}
-                required
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setEditingMeeting(null)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={handleSaveEdit}>
-                  Save Changes
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        )}
       </div>
+
+      {/* Edit Title Modal */}
+      {editingMeeting && (
+        <Modal
+          isOpen={true}
+          onClose={() => setEditingMeeting(null)}
+          title="Edit Meeting Topic"
+        >
+          <div className="space-y-4 pt-2">
+            <Input
+              label="Meeting Topic"
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              placeholder="Enter meeting title..."
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" size="sm" onClick={() => setEditingMeeting(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </DashboardLayout>
   );
 }

@@ -56,9 +56,9 @@ export function ParticipantTile({
 
   return (
     <div
-      className={`group relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0D1527] border transition-all duration-200 ${
+      className={`group relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-[#0E1626] border-2 transition-all duration-200 ${
         isSpeaking
-          ? "border-emerald-500 speaking-highlight"
+          ? "border-indigo-500 speaking-highlight shadow-xl"
           : "border-slate-800/90 hover:border-slate-700 shadow-lg"
       } ${className}`}
     >
@@ -72,31 +72,31 @@ export function ParticipantTile({
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center text-center p-4">
-          <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white text-2xl sm:text-3xl font-bold shadow-2xl border border-white/15 select-none tracking-tight">
+          <div className="flex h-20 w-20 sm:h-26 sm:w-26 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white text-2xl sm:text-4xl font-bold shadow-2xl border-2 border-white/20 select-none tracking-tight">
             {initials}
           </div>
-          <span className="mt-3 text-xs sm:text-sm font-semibold text-slate-200 tracking-tight">
+          <span className="mt-3.5 text-sm sm:text-base font-bold text-slate-100 tracking-tight">
             {displayName}
           </span>
         </div>
       )}
 
       {/* Top Left Badges: Host / Co-host / Raised Hand */}
-      <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
+      <div className="absolute top-3.5 left-3.5 flex items-center gap-2 z-10">
         {isHost && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-md">
-            <Crown className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 text-xs font-bold text-white shadow-md">
+            <Crown className="w-3.5 h-3.5" />
             <span>Host</span>
           </span>
         )}
         {isCoHost && !isHost && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-600/90 px-2.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md">
+          <span className="inline-flex items-center gap-1 rounded-xl bg-purple-600/90 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
             Co-host
           </span>
         )}
         {isHandRaised && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-amber-400 px-2.5 py-0.5 text-[10px] font-bold text-slate-950 shadow-md animate-bounce">
-            <Hand className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1 rounded-xl bg-amber-400 px-3 py-1 text-xs font-bold text-slate-950 shadow-md animate-bounce">
+            <Hand className="w-3.5 h-3.5" />
             <span>Hand Raised</span>
           </span>
         )}
@@ -106,24 +106,24 @@ export function ParticipantTile({
       {onTogglePin && (
         <button
           onClick={onTogglePin}
-          className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-xl bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/90 backdrop-blur-md cursor-pointer border border-white/10"
+          className="absolute top-3.5 right-3.5 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/90 backdrop-blur-md cursor-pointer border border-white/10"
           title={isPinned ? "Unpin view" : "Pin participant"}
         >
-          {isPinned ? <PinOff className="w-4 h-4 text-blue-400" /> : <Pin className="w-4 h-4" />}
+          {isPinned ? <PinOff className="w-4.5 h-4.5 text-indigo-400" /> : <Pin className="w-4.5 h-4.5" />}
         </button>
       )}
 
       {/* Bottom Name & Mic status badge */}
-      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
-        <div className="flex items-center gap-1.5 rounded-xl bg-black/70 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md border border-white/10 max-w-[85%] shadow-sm">
+      <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-center justify-between z-10 pointer-events-none">
+        <div className="flex items-center gap-2 rounded-xl bg-black/75 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-white backdrop-blur-md border border-white/15 max-w-[85%] shadow-md">
           <div
             className={`p-0.5 rounded ${
               isAudioMuted ? "text-rose-400" : isSpeaking ? "text-emerald-400" : "text-slate-300"
             }`}
           >
-            {isAudioMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+            {isAudioMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </div>
-          <span className="truncate text-[11px] sm:text-xs">
+          <span className="truncate text-xs sm:text-sm font-medium">
             {displayName} {trackRef.participant.isLocal ? "(You)" : ""}
           </span>
         </div>

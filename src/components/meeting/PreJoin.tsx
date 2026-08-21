@@ -8,14 +8,13 @@ import {
   MicOff,
   Video as VideoIcon,
   VideoOff,
-  Settings,
+  SlidersHorizontal,
   ShieldCheck,
   AlertTriangle,
   Volume2,
   Lock,
   ArrowRight,
   Sparkles,
-  SlidersHorizontal,
 } from "lucide-react";
 
 interface PreJoinProps {
@@ -135,11 +134,11 @@ export function PreJoin({
         const error = err as Error;
         console.warn("Media preview access warning:", error);
         if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-          setPermissionError("Camera / Microphone access was denied. You can join in listen mode.");
+          setPermissionError("Camera / Microphone access was denied. You will join in listen mode.");
           setAudioEnabled(false);
           setVideoEnabled(false);
         } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-          setPermissionError("No camera or microphone detected. You will join in listen/view mode.");
+          setPermissionError("No camera or microphone hardware detected. You will join in listen/view mode.");
           setAudioEnabled(false);
           setVideoEnabled(false);
         } else {
@@ -200,27 +199,27 @@ export function PreJoin({
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#080C16] p-4 sm:p-6 lg:p-8 text-white relative overflow-hidden font-[Poppins,sans-serif]">
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 sm:p-6 lg:p-8 text-white relative overflow-hidden font-[Poppins,sans-serif]">
       {/* Background ambient lighting */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(37,99,235,0.18),transparent_65%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.15),transparent_65%)] pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-4xl space-y-6">
+      <div className="relative z-10 w-full max-w-4xl space-y-5">
         {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 text-white shadow-md shadow-blue-500/25">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
               <VideoIcon className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-white">
+              <h1 className="text-sm font-bold tracking-tight text-white">
                 {branding.appName}
               </h1>
-              <p className="text-xs text-slate-400 font-mono">Room ID: {meetingId}</p>
+              <p className="text-[11px] text-slate-400 font-mono">Room ID: {meetingId}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 border border-blue-500/20">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-400 border border-indigo-500/20">
               <Sparkles className="w-3.5 h-3.5" />
               <span>LiveKit Connected</span>
             </span>
@@ -229,8 +228,8 @@ export function PreJoin({
 
         {/* Notice alert */}
         {permissionError && (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200 flex items-start gap-3 backdrop-blur-md">
-            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
             <div>
               <p className="font-semibold text-amber-300">Device Hardware Notice</p>
               <p className="mt-0.5 text-amber-200/90">{permissionError}</p>
@@ -242,7 +241,7 @@ export function PreJoin({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-center">
           {/* Video Preview (Left 7 Cols) */}
           <div className="lg:col-span-7 flex flex-col items-center">
-            <div className="relative aspect-video w-full rounded-2xl bg-[#0D1527] border border-slate-800 shadow-2xl overflow-hidden flex items-center justify-center">
+            <div className="relative aspect-video w-full rounded-xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden flex items-center justify-center">
               {/* Video Element */}
               <video
                 ref={videoRef}
@@ -256,20 +255,20 @@ export function PreJoin({
 
               {/* Video Off / Avatar Placeholder */}
               {(!videoEnabled || permissionError) && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#0D1527] to-[#080C16] text-slate-400">
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white text-3xl font-bold mb-3 shadow-xl border border-white/15 select-none">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-600 text-white text-2xl font-bold mb-2 shadow-md border border-white/10 select-none">
                     {displayName.charAt(0).toUpperCase() || "U"}
                   </div>
-                  <p className="text-sm font-semibold text-slate-200">{displayName}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Camera feed inactive</p>
+                  <p className="text-xs font-semibold text-slate-200">{displayName}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Camera inactive</p>
                 </div>
               )}
 
               {/* Audio visualizer meter line */}
               {audioEnabled && !permissionError && (
-                <div className="absolute top-3.5 right-3.5 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-xs">
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-xs">
                   <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <div className="w-14 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-emerald-500 transition-all duration-75"
                       style={{ width: `${Math.max(10, audioLevel)}%` }}
@@ -279,57 +278,57 @@ export function PreJoin({
               )}
 
               {/* Floating Media Toggles inside preview */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/10 shadow-xl">
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 shadow-lg">
                 <button
                   type="button"
                   onClick={toggleAudio}
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-150 cursor-pointer ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors cursor-pointer ${
                     audioEnabled
                       ? "bg-slate-800 hover:bg-slate-700 text-white"
-                      : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/30"
+                      : "bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
                   }`}
                   title={audioEnabled ? "Mute Microphone" : "Unmute Microphone"}
                 >
-                  {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+                  {audioEnabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
                 </button>
 
                 <button
                   type="button"
                   onClick={toggleVideo}
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-150 cursor-pointer ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors cursor-pointer ${
                     videoEnabled
                       ? "bg-slate-800 hover:bg-slate-700 text-white"
-                      : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/30"
+                      : "bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
                   }`}
                   title={videoEnabled ? "Turn off Camera" : "Turn on Camera"}
                 >
-                  {videoEnabled ? <VideoIcon className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+                  {videoEnabled ? <VideoIcon className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowDeviceSettings(!showDeviceSettings)}
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-150 cursor-pointer ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors cursor-pointer ${
                     showDeviceSettings
-                      ? "bg-blue-600 text-white shadow-sm"
+                      ? "bg-indigo-600 text-white"
                       : "bg-slate-800 hover:bg-slate-700 text-slate-300"
                   }`}
                   title="Audio & Video Settings"
                 >
-                  <SlidersHorizontal className="h-5 w-5" />
+                  <SlidersHorizontal className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            {/* Quick Device Selector */}
+            {/* Device Selector Dropdown */}
             {showDeviceSettings && (
-              <div className="w-full mt-3 rounded-2xl border border-slate-800 bg-[#0D1527]/95 p-4 space-y-3 text-xs backdrop-blur-md">
+              <div className="w-full mt-3 rounded-xl border border-slate-800 bg-slate-900 p-3 space-y-2.5 text-xs">
                 <div>
-                  <label className="text-slate-400 font-medium block mb-1">Microphone Device</label>
+                  <label className="text-slate-400 font-medium block mb-1">Microphone</label>
                   <select
                     value={selectedAudioInput}
                     onChange={e => setSelectedAudioInput(e.target.value)}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-white text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-white text-xs focus:outline-none focus:border-indigo-500"
                   >
                     <option value="">System Default Microphone</option>
                     {devices.audioInputs.map((d, i) => (
@@ -339,11 +338,11 @@ export function PreJoin({
                 </div>
 
                 <div>
-                  <label className="text-slate-400 font-medium block mb-1">Camera Device</label>
+                  <label className="text-slate-400 font-medium block mb-1">Camera</label>
                   <select
                     value={selectedVideoInput}
                     onChange={e => setSelectedVideoInput(e.target.value)}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-white text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-white text-xs focus:outline-none focus:border-indigo-500"
                   >
                     <option value="">System Default Camera</option>
                     {devices.videoInputs.map((d, i) => (
@@ -357,23 +356,23 @@ export function PreJoin({
 
           {/* Join Form Details (Right 5 Cols) */}
           <div className="lg:col-span-5 flex flex-col justify-center">
-            <div className="rounded-2xl border border-slate-800/90 bg-[#0D1527]/90 p-6 backdrop-blur-xl space-y-5 shadow-2xl">
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 space-y-4 shadow-xl">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
-                  Ready to join
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                  Ready to Connect
                 </span>
-                <h2 className="text-xl font-bold text-white tracking-tight mt-0.5">
+                <h2 className="text-lg font-bold text-white tracking-tight mt-0.5">
                   {meetingTitle || "Infiplus Conference"}
                 </h2>
-                <p className="text-xs text-slate-400 mt-1 font-normal leading-relaxed">
-                  Enter your name to connect to the meeting stream.
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Enter your name to enter the conference room.
                 </p>
               </div>
 
-              <form onSubmit={handleJoinClick} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                    Your Name
+              <form onSubmit={handleJoinClick} className="space-y-3.5">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Display Name
                   </label>
                   <input
                     type="text"
@@ -381,14 +380,14 @@ export function PreJoin({
                     value={displayName}
                     onChange={e => setDisplayName(e.target.value)}
                     required
-                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 font-medium"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
 
                 {passwordRequired && (
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-blue-400" />
+                  <div className="space-y-1">
+                    <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Meeting Passcode</span>
                     </label>
                     <input
@@ -397,16 +396,16 @@ export function PreJoin({
                       value={enteredPassword}
                       onChange={e => setEnteredPassword(e.target.value)}
                       required
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                 )}
 
-                <div className="pt-2">
+                <div className="pt-1">
                   <Button
                     type="submit"
-                    variant="gradient"
-                    className="w-full h-12 text-sm font-semibold shadow-lg shadow-blue-600/30"
+                    variant="primary"
+                    className="w-full h-10 text-xs font-semibold"
                   >
                     <span>Enter Meeting Room</span>
                     <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -416,10 +415,10 @@ export function PreJoin({
 
               <div className="border-t border-slate-800 pt-3 flex items-center justify-between text-[11px] text-slate-400 font-medium">
                 <span className="flex items-center gap-1.5 text-emerald-400">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Encrypted Channel</span>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Secure & Encrypted</span>
                 </span>
-                <span>{isHost ? "Host Access" : "Guest Participant"}</span>
+                <span>{isHost ? "Host Role" : "Attendee"}</span>
               </div>
             </div>
           </div>

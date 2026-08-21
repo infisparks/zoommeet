@@ -19,10 +19,9 @@ import {
   Mail,
   MoreVertical,
   Trash2,
-  Edit,
-  Building,
   Check,
   Copy,
+  Building,
 } from "lucide-react";
 
 export default function ContactsPage() {
@@ -60,7 +59,7 @@ export default function ContactsPage() {
       name,
       email,
       role: role || "Team Member",
-      department: department || "General",
+      department: department || "Engineering",
       status: "online",
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
     });
@@ -80,234 +79,263 @@ export default function ContactsPage() {
     }
   };
 
-  const handleInviteToMeeting = async (contact: Contact) => {
+  const handleStartInstantCallWith = async (contact: Contact) => {
     if (!user) return;
-    setSelectedContact(contact);
     const meeting = await meetingService.createMeeting({
       title: `Meeting with ${contact.name}`,
       hostId: user.id,
       hostName: user.name,
       hostEmail: user.email,
     });
+    router.push(`/meeting/${meeting.meetingId}`);
+  };
+
+  const handleGenerateInvite = async (contact: Contact) => {
+    if (!user) return;
+    const meeting = await meetingService.createMeeting({
+      title: `1-on-1 Call with ${contact.name}`,
+      hostId: user.id,
+      hostName: user.name,
+      hostEmail: user.email,
+    });
     const url = `${window.location.origin}/meeting/${meeting.meetingId}`;
+    setSelectedContact(contact);
     setGeneratedInviteUrl(url);
     setIsInviteModalOpen(true);
   };
 
-  const filtered = contacts.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.role?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.department?.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleCopyInvite = () => {
+    if (generatedInviteUrl) {
+      navigator.clipboard.writeText(generatedInviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const filteredContacts = contacts.filter(
+    c =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.department && c.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.role && c.role.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
     <DashboardLayout
-      title="Company Contacts"
-      subtitle="Connect with teammates and external clients with 1-click meeting invitations."
+      title="Team Directory"
+      subtitle="Manage your team colleagues, departments, and launch instant 1-on-1 calls."
     >
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="space-y-5">
+        {/* Top bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="w-full sm:w-80">
             <Input
-              placeholder="Search contacts by name, role, email..."
+              placeholder="Search by name, email, department..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              leftIcon={<Search className="w-4 h-4" />}
+              leftIcon={<Search className="w-4 h-4 text-slate-400" />}
             />
           </div>
 
-          <Button variant="primary" size="sm" onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="w-4 h-4" />
-            <span>Add Contact</span>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            <span>Add Member</span>
           </Button>
         </div>
 
-        <Card className="p-0 overflow-hidden">
+        {/* Contacts Table (Clean HR Style) */}
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">
-              <thead className="border-b border-slate-200 bg-slate-50/80 font-semibold text-slate-700">
+              <thead className="border-b border-slate-100 bg-slate-50 font-semibold text-slate-700">
                 <tr>
-                  <th className="py-3.5 px-4 sm:px-6">Contact</th>
-                  <th className="py-3.5 px-4">Role / Title</th>
-                  <th className="py-3.5 px-4">Department</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right sm:px-6">Actions</th>
+                  <th className="py-3 px-4">Member Name</th>
+                  <th className="py-3 px-4">Department</th>
+                  <th className="py-3 px-4">Role</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map(contact => (
-                  <tr key={contact.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4 sm:px-6">
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          src={contact.avatar}
-                          name={contact.name}
-                          size="md"
-                          status={contact.status}
-                        />
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-900 truncate">{contact.name}</p>
-                          <p className="text-[11px] text-slate-400 truncate">{contact.email}</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      <span className="font-medium text-slate-800">{contact.role || "Member"}</span>
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      <Badge variant="secondary" size="sm">
-                        {contact.department || "General"}
-                      </Badge>
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      <Badge
-                        variant={
-                          contact.status === "online"
-                            ? "success"
-                            : contact.status === "in-meeting"
-                            ? "primary"
-                            : contact.status === "busy"
-                            ? "danger"
-                            : "secondary"
-                        }
-                        size="sm"
-                      >
-                        {contact.status || "offline"}
-                      </Badge>
-                    </td>
-
-                    <td className="py-3.5 px-4 sm:px-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleInviteToMeeting(contact)}
-                        >
-                          <Video className="w-3.5 h-3.5 text-blue-600" />
-                          <span className="hidden sm:inline">Meet</span>
-                        </Button>
-
-                        <button
-                          onClick={() => handleDeleteContact(contact.id)}
-                          title="Delete contact"
-                          className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                {filteredContacts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      No team members found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredContacts.map(c => (
+                    <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            name={c.name}
+                            src={c.avatar}
+                            size="sm"
+                            status={c.status === "online" ? "online" : "offline"}
+                          />
+                          <div>
+                            <p className="font-semibold text-slate-900 text-xs">
+                              {c.name}
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              {c.email}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <Badge variant="primary" size="sm">
+                          {c.department || "General"}
+                        </Badge>
+                      </td>
+
+                      <td className="py-3 px-4 text-slate-700 font-medium">
+                        {c.role || "Team Member"}
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-700 font-medium">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span>Active</span>
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleStartInstantCallWith(c)}
+                            className="h-7 text-xs px-2.5"
+                          >
+                            <Video className="w-3 h-3 mr-1" />
+                            <span>Call</span>
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleGenerateInvite(c)}
+                            className="h-7 text-xs px-2.5"
+                          >
+                            <Mail className="w-3 h-3 mr-1" />
+                            <span>Invite</span>
+                          </Button>
+
+                          <button
+                            onClick={() => handleDeleteContact(c.id)}
+                            title="Remove contact"
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
+      </div>
 
-        {/* Add Contact Modal */}
-        <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          title="Add New Contact"
-          description="Save a colleague or client to your address book."
-        >
-          <form onSubmit={handleAddContact} className="space-y-4 pt-1">
-            <Input
-              label="Full Name"
-              placeholder="e.g. Jessica Taylor"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-            />
+      {/* Add Member Modal */}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Add Team Member"
+      >
+        <form onSubmit={handleAddContact} className="space-y-4 pt-2">
+          <Input
+            label="Full Name *"
+            placeholder="e.g. Sarah Jenkins"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+          />
 
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="e.g. jessica@company.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
+          <Input
+            label="Email Address *"
+            type="email"
+            placeholder="e.g. sarah@infiplus.in"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
 
+          <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Role / Title"
-              placeholder="e.g. Senior Frontend Engineer"
+              label="Role"
+              placeholder="e.g. Product Designer"
               value={role}
               onChange={e => setRole(e.target.value)}
             />
-
             <Input
               label="Department"
-              placeholder="e.g. Product Engineering"
+              placeholder="e.g. Design"
               value={department}
               onChange={e => setDepartment(e.target.value)}
             />
+          </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary">
-                Add to Contacts
-              </Button>
-            </div>
-          </form>
-        </Modal>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsAddModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm">
+              Save Member
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
-        {/* Meeting Invite Link Modal */}
-        {isInviteModalOpen && selectedContact && (
-          <Modal
-            isOpen={isInviteModalOpen}
-            onClose={() => setIsInviteModalOpen(false)}
-            title={`Invite ${selectedContact.name}`}
-            description="A dedicated conference room has been generated."
-          >
-            <div className="space-y-4 pt-1">
-              <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 text-xs space-y-2">
-                <p className="text-slate-700">
-                  Send this link to <span className="font-semibold text-slate-900">{selectedContact.name}</span> ({selectedContact.email}) to join instantly:
-                </p>
-                <div className="p-2.5 bg-white rounded-lg border border-slate-200 font-mono text-blue-700 break-all select-all">
-                  {generatedInviteUrl}
-                </div>
-              </div>
+      {/* Invite Modal */}
+      <Modal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        title={`Invite ${selectedContact?.name || "Member"}`}
+      >
+        <div className="space-y-4 pt-2">
+          <p className="text-xs text-slate-600">
+            Share this dedicated meeting link with <span className="font-semibold text-slate-900">{selectedContact?.name}</span> to start your video call:
+          </p>
 
-              <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (generatedInviteUrl) {
-                      navigator.clipboard.writeText(generatedInviteUrl);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    }
-                  }}
-                >
-                  {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                  <span>{copied ? "Copied" : "Copy Link"}</span>
-                </Button>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={generatedInviteUrl || ""}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-700 select-all"
+            />
+            <Button size="sm" variant="primary" onClick={handleCopyInvite}>
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? "Copied" : "Copy"}</span>
+            </Button>
+          </div>
 
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    if (generatedInviteUrl) {
-                      router.push(generatedInviteUrl);
-                    }
-                  }}
-                >
-                  <Video className="w-4 h-4" />
-                  <span>Join Meeting Now</span>
-                </Button>
-              </div>
-            </div>
-          </Modal>
-        )}
-      </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setIsInviteModalOpen(false)}
+            >
+              Done
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </DashboardLayout>
   );
 }

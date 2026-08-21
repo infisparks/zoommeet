@@ -35,7 +35,9 @@ export default function SchedulePage() {
   });
   const [time, setTime] = useState("10:00");
   const [duration, setDuration] = useState(45);
-  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+  const [timezone, setTimezone] = useState(
+    typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" : "UTC"
+  );
 
   const [waitingRoom, setWaitingRoom] = useState(true);
   const [passwordEnabled, setPasswordEnabled] = useState(false);
@@ -91,268 +93,243 @@ export default function SchedulePage() {
 
   return (
     <DashboardLayout
-      title="Schedule a Meeting"
-      subtitle="Plan conferences in advance, configure participant controls, and share invitations."
+      title="Schedule a Conference"
+      subtitle="Plan meetings in advance, configure participant moderation, and copy invitations."
     >
-      <div className="max-w-3xl mx-auto space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Meeting Details</CardTitle>
-            <CardDescription>
-              Set the topic, schedule date/time, and customize conference options.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <Input
-                  label="Topic / Title"
-                  placeholder="e.g. Q4 Executive Planning Sync"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  required
-                />
+      <div className="max-w-3xl mx-auto space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Section 1: Basic Info */}
+          <Card className="p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Basic Information</h3>
+              <p className="text-xs text-slate-500">Provide the title and schedule for this conference.</p>
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Add an agenda, meeting notes, or pre-read materials for attendees..."
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  />
-                </div>
-              </div>
+            <Input
+              label="Meeting Topic *"
+              placeholder="e.g. Weekly Product Strategy Sync"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              required
+            />
 
-              {/* Date, Time, Duration Grid */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2 border-t border-slate-100">
-                <Input
-                  label="Date"
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  required
-                />
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                Agenda / Description
+              </label>
+              <textarea
+                placeholder="Add meeting agenda, discussion topics, or notes..."
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
 
-                <Input
-                  label="Start Time"
-                  type="time"
-                  value={time}
-                  onChange={e => setTime(e.target.value)}
-                  required
-                />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="Date *"
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                required
+              />
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    Duration
-                  </label>
-                  <select
-                    value={duration}
-                    onChange={e => setDuration(Number(e.target.value))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  >
-                    <option value={15}>15 minutes</option>
-                    <option value={30}>30 minutes</option>
-                    <option value={45}>45 minutes</option>
-                    <option value={60}>1 hour</option>
-                    <option value={90}>1.5 hours</option>
-                    <option value={120}>2 hours</option>
-                  </select>
-                </div>
-              </div>
+              <Input
+                label="Start Time *"
+                type="time"
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                required
+              />
+            </div>
 
-              {/* Security & Access Controls */}
-              <div className="space-y-3 pt-2 border-t border-slate-100">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Security & Access Options
-                </h4>
-
-                <div className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
-                  {/* Waiting Room */}
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100/60 text-blue-700">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-slate-800">Waiting Room</p>
-                        <p className="text-[11px] text-slate-500">
-                          Participants are placed in a waiting lobby until admitted by host
-                        </p>
-                      </div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={waitingRoom}
-                      onChange={e => setWaitingRoom(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </label>
-
-                  {/* Passcode Protection */}
-                  <div className="border-t border-slate-200/70 pt-3">
-                    <label className="flex items-center justify-between cursor-pointer mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100/60 text-indigo-700">
-                          <Lock className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800">Passcode Protection</p>
-                          <p className="text-[11px] text-slate-500">
-                            Only users with the passcode can enter
-                          </p>
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={passwordEnabled}
-                        onChange={e => setPasswordEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </label>
-
-                    {passwordEnabled && (
-                      <div className="pl-11 pt-1">
-                        <Input
-                          placeholder="e.g. infi-secure-99"
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          className="text-xs"
-                          required={passwordEnabled}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Allow Before Host */}
-                  <div className="border-t border-slate-200/70 pt-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100/60 text-amber-700">
-                          <Clock className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800">Allow join before host</p>
-                          <p className="text-[11px] text-slate-500">
-                            Allow guests to join audio/video before the meeting creator arrives
-                          </p>
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={allowBeforeHost}
-                        onChange={e => setAllowBeforeHost(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </label>
-                  </div>
-
-                  {/* Auto Record */}
-                  <div className="border-t border-slate-200/70 pt-3">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100/60 text-rose-700">
-                          <Radio className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800">Automatic Recording UI</p>
-                          <p className="text-[11px] text-slate-500">
-                            Automatically initiate cloud recording session when meeting starts
-                          </p>
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={autoRecord}
-                        onChange={e => setAutoRecord(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push("/dashboard")}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Duration (Minutes)
+                </label>
+                <select
+                  value={duration}
+                  onChange={e => setDuration(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" isLoading={isLoading}>
-                  <Calendar className="w-4 h-4" />
-                  <span>Save & Schedule</span>
-                </Button>
+                  <option value={15}>15 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={45}>45 minutes</option>
+                  <option value={60}>1 hour</option>
+                  <option value={90}>1.5 hours</option>
+                  <option value={120}>2 hours</option>
+                </select>
               </div>
-            </form>
-          </CardContent>
-        </Card>
 
-        {/* Success Modal */}
-        {scheduledMeeting && (
-          <Modal
-            isOpen={!!scheduledMeeting}
-            onClose={() => {
-              setScheduledMeeting(null);
-              router.push("/meetings");
-            }}
-            title="Meeting Successfully Scheduled!"
-            description="Your meeting has been created. Share the invitation details with your attendees."
-            maxWidth="md"
-          >
-            <div className="space-y-4 pt-1">
-              <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-2 text-xs">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Timezone
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  value={timezone}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 font-mono"
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Section 2: Security & Permissions */}
+          <Card className="p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Security & Host Moderation</h3>
+              <p className="text-xs text-slate-500">Configure participant admission controls and room security.</p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Waiting Room */}
+              <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={waitingRoom}
+                  onChange={e => setWaitingRoom(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
                 <div>
-                  <span className="font-semibold text-slate-700">Topic: </span>
-                  <span className="text-slate-900 font-bold">{scheduledMeeting.title}</span>
+                  <p className="text-xs font-semibold text-slate-900">Enable Waiting Room</p>
+                  <p className="text-[11px] text-slate-500">
+                    Host must manually admit participants before they enter the meeting stream.
+                  </p>
                 </div>
-                <div>
-                  <span className="font-semibold text-slate-700">Date & Time: </span>
-                  <span className="text-slate-900">{new Date(scheduledMeeting.scheduledAt || "").toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="font-semibold text-slate-700">Meeting ID: </span>
-                  <span className="font-mono text-blue-700 font-bold">{scheduledMeeting.meetingId}</span>
-                </div>
-                {scheduledMeeting.password && (
+              </label>
+
+              {/* Passcode Protection */}
+              <div className="rounded-lg border border-slate-200 p-3 space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={passwordEnabled}
+                    onChange={e => setPasswordEnabled(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
                   <div>
-                    <span className="font-semibold text-slate-700">Passcode: </span>
-                    <span className="font-mono text-slate-900">{scheduledMeeting.password}</span>
+                    <p className="text-xs font-semibold text-slate-900">Require Meeting Passcode</p>
+                    <p className="text-[11px] text-slate-500">
+                      Attendees will be prompted for this secret password before joining.
+                    </p>
+                  </div>
+                </label>
+
+                {passwordEnabled && (
+                  <div className="pt-1 pl-7">
+                    <Input
+                      placeholder="Enter 4-8 character passcode..."
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required={passwordEnabled}
+                    />
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 p-2.5 bg-blue-50 rounded-lg border border-blue-200 text-xs">
-                <span className="truncate flex-1 font-mono text-blue-900">{getMeetingUrl()}</span>
-                <Button size="sm" variant="secondary" onClick={handleCopyLink}>
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? "Copied" : "Copy Link"}
-                </Button>
-              </div>
+              {/* Allow Join Before Host */}
+              <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allowBeforeHost}
+                  onChange={e => setAllowBeforeHost(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <p className="text-xs font-semibold text-slate-900">Allow Attendees to Join Before Host</p>
+                  <p className="text-[11px] text-slate-500">
+                    Participants can enter the room and talk before the scheduled host arrives.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </Card>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/meetings")}
-                >
-                  View All Meetings
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => router.push(`/meeting/${scheduledMeeting.meetingId}`)}
-                >
-                  <span>Start Now</span>
-                  <ArrowRight className="w-4 h-4 ml-1" />
+          {/* Form Actions */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => router.push("/dashboard")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isLoading}
+            >
+              <Calendar className="w-4 h-4 mr-1.5" />
+              <span>Schedule Meeting</span>
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* Success Modal */}
+      {scheduledMeeting && (
+        <Modal
+          isOpen={true}
+          onClose={() => {
+            setScheduledMeeting(null);
+            router.push("/meetings");
+          }}
+          title="Meeting Successfully Scheduled"
+        >
+          <div className="space-y-4 pt-2">
+            <div className="rounded-xl bg-indigo-50/80 border border-indigo-100 p-4">
+              <h4 className="font-bold text-sm text-indigo-950">
+                {scheduledMeeting.title}
+              </h4>
+              <p className="text-xs text-indigo-700 mt-1 font-mono">
+                Meeting ID: {scheduledMeeting.meetingId}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Shareable Meeting URL
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={getMeetingUrl()}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-700 select-all"
+                />
+                <Button size="sm" variant="primary" onClick={handleCopyLink}>
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? "Copied" : "Copy"}</span>
                 </Button>
               </div>
             </div>
-          </Modal>
-        )}
-      </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setScheduledMeeting(null);
+                  router.push("/meetings");
+                }}
+              >
+                Go to Meetings
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => router.push(`/meeting/${scheduledMeeting.meetingId}`)}
+              >
+                <span>Enter Room Now</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </DashboardLayout>
   );
 }

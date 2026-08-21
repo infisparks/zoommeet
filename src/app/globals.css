@@ -3,49 +3,52 @@
 :root {
   --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --background: #F8FAFC;
-  --foreground: #111827;
+  --foreground: #0F172A;
   --card: #FFFFFF;
-  --card-foreground: #111827;
+  --card-foreground: #0F172A;
   --popover: #FFFFFF;
-  --popover-foreground: #111827;
+  --popover-foreground: #0F172A;
   
-  /* Primary Purple / Indigo Theme */
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
+  /* Luxury Obsidian & Royal Violet-Indigo Palette */
+  --primary: #6366F1;
+  --primary-hover: #4F46E5;
   --primary-foreground: #FFFFFF;
+  --primary-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #7C3AED 100%);
   
   --secondary: #F1F5F9;
-  --secondary-foreground: #334155;
+  --secondary-foreground: #1E293B;
   --muted: #F8FAFC;
-  --muted-foreground: #6B7280;
+  --muted-foreground: #64748B;
   --accent: #EEF2FF;
   --accent-foreground: #4338CA;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #E5E7EB;
-  --input: #E5E7EB;
-  --ring: #4F46E5;
-  --radius: 0.625rem;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #6366F1;
+  --radius: 0.875rem;
 
-  /* Executive Dark Meeting Canvas */
-  --meeting-canvas: #0F172A;
-  --meeting-surface: #1E293B;
-  --meeting-card: #1E293B;
-  --meeting-border: #334155;
+  /* Cinematic Obsidian Dark Theme */
+  --meeting-canvas: #070B14;
+  --meeting-surface: #0E1626;
+  --meeting-card: #131E33;
+  --meeting-border: #1E2D4A;
 }
 
 body {
-  background-color: #F8FAFC;
-  color: #111827;
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-family);
+  font-size: 15px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbars */
+/* Custom Luxury Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -58,60 +61,68 @@ body {
   background: #94A3B8;
 }
 
-/* Glass & Card utilities */
+/* Luxury Glass Effects */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+}
+
 .glass-meeting-panel {
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.5);
+  background: rgba(14, 22, 38, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
 }
 
 .glass-control-bar {
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.6);
+  background: rgba(14, 22, 38, 0.94);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8);
 }
 
-/* Active speaker ring */
-@keyframes active-speaker-pulse {
+/* Active Speaker Pulsing Glow */
+@keyframes luxury-speaker-glow {
   0% {
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.9), 0 0 12px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.9), 0 0 18px rgba(99, 102, 241, 0.45);
   }
   50% {
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 1), 0 0 22px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 1), 0 0 32px rgba(139, 92, 246, 0.65);
   }
   100% {
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.9), 0 0 12px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.9), 0 0 18px rgba(99, 102, 241, 0.45);
   }
 }
 
 .speaking-highlight {
-  animation: active-speaker-pulse 1.8s infinite ease-in-out;
+  animation: luxury-speaker-glow 1.8s infinite ease-in-out;
 }
 
-/* Floating emoji */
-@keyframes float-reaction {
+/* Floating Reactions */
+@keyframes float-reaction-luxury {
   0% {
     transform: translateY(0) scale(0.6);
     opacity: 0;
   }
   15% {
-    transform: translateY(-20px) scale(1.1);
+    transform: translateY(-25px) scale(1.2);
     opacity: 1;
   }
   80% {
-    transform: translateY(-120px) scale(1);
-    opacity: 0.9;
+    transform: translateY(-140px) scale(1.05);
+    opacity: 0.95;
   }
   100% {
-    transform: translateY(-160px) scale(0.7);
+    transform: translateY(-180px) scale(0.8);
     opacity: 0;
   }
 }
 
 .floating-reaction {
-  animation: float-reaction 2.5s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: float-reaction-luxury 2.8s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
 }
