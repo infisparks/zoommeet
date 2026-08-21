@@ -31,21 +31,22 @@ export function ParticipantTile({
   onTogglePin,
   className = "",
 }: ParticipantTileProps) {
-  const isSpeaking = useIsSpeaking(trackRef.participant);
+  const isSpeaking = useIsSpeaking(trackRef?.participant);
   const isVideoMuted = useTrackMutedIndicator(trackRef);
-  const isAudioMuted = !trackRef.participant.isMicrophoneEnabled;
+  const isAudioMuted = !trackRef?.participant?.isMicrophoneEnabled;
 
   const displayName =
-    trackRef.participant.name ||
-    trackRef.participant.identity ||
+    trackRef?.participant?.name ||
+    trackRef?.participant?.identity ||
     "Attendee";
 
   const initials = displayName
     .split(" ")
+    .filter(Boolean)
     .map(p => p[0])
     .join("")
     .substring(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "A";
 
   const isRealTrack = isTrackReference(trackRef);
   const hasVideoTrack =
@@ -124,7 +125,7 @@ export function ParticipantTile({
             {isAudioMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </div>
           <span className="truncate text-xs sm:text-sm font-medium">
-            {displayName} {trackRef.participant.isLocal ? "(You)" : ""}
+            {displayName} {trackRef?.participant?.isLocal ? "(You)" : ""}
           </span>
         </div>
       </div>
