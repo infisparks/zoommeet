@@ -11,6 +11,7 @@ import {
   useDataChannel,
   RoomAudioRenderer,
   isTrackReference,
+  TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
 import { Track, ConnectionState } from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
@@ -80,7 +81,21 @@ function MeetingRoomInner({
 
   // Meeting Duration Timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [participantToast, setParticipantToast] = useState<string | null>(null);
   const publishedInitialRef = useRef(false);
+  const prevCountRef = useRef(participants.length);
+
+  useEffect(() => {
+    if (participants.length > prevCountRef.current && prevCountRef.current > 0) {
+      const latest = participants[participants.length - 1];
+      const name = latest?.name || latest?.identity || "Someone";
+      setParticipantToast(`${name} joined the room`);
+      const timer = setTimeout(() => setParticipantToast(null), 4000);
+      prevCountRef.current = participants.length;
+      return () => clearTimeout(timer);
+    }
+    prevCountRef.current = participants.length;
+  }, [participants]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -177,15 +192,50 @@ function MeetingRoomInner({
   const { send } = useDataChannel(onDataReceived);
 
   // Tracks for Camera and Screen Sharing
-  const tracks = useTracks([
-    { source: Track.Source.Camera, withPlaceholder: true },
-    { source: Track.Source.ScreenShare, withPlaceholder: false },
-  ]);
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  );
 
   const cameraTracks = tracks.filter(t => t.source === Track.Source.Camera);
   const screenShareTrack = tracks.find(
     t => t.source === Track.Source.ScreenShare && isTrackReference(t)
   );
+
+  // Guarantee every participant connected in the room (local or remote) is ALWAYS in the video grid
+  const allParticipantTiles = React.useMemo(() => {
+    const tileMap = new Map<string, TrackReferenceOrPlaceholder>();
+
+    // 1. First add all detected camera tracks/placeholders
+    cameraTracks.forEach(t => {
+      if (t.participant?.identity) {
+        tileMap.set(t.participant.identity, t);
+      }
+    });
+
+    // 2. Ensure every participant from useParticipants() has a tile even before camera publication
+    participants.forEach(p => {
+      if (!tileMap.has(p.identity)) {
+        tileMap.set(p.identity, {
+          participant: p,
+          source: Track.Source.Camera,
+        } as TrackReferenceOrPlaceholder);
+      }
+    });
+
+    // 3. Fallback: ensure local participant is always present
+    if (localParticipant && !tileMap.has(localParticipant.identity)) {
+      tileMap.set(localParticipant.identity, {
+        participant: localParticipant,
+        source: Track.Source.Camera,
+      } as TrackReferenceOrPlaceholder);
+    }
+
+    return Array.from(tileMap.values());
+  }, [cameraTracks, participants, localParticipant]);
 
   const isLocalScreenSharing = Boolean(
     localParticipant &&
@@ -408,6 +458,14 @@ function MeetingRoomInner({
         </div>
       </div>
 
+      {/* Dynamic Participant Join Notification Toast */}
+      {participantToast && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-2xl bg-indigo-600/95 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-2xl backdrop-blur-xl border border-indigo-400/40 animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+          <span>{participantToast}</span>
+        </div>
+      )}
+
       {/* Host Waiting Room Banner */}
       {isHost && (
         <HostWaitingRoomBanner
@@ -423,14 +481,14 @@ function MeetingRoomInner({
         {screenShareTrack ? (
           <ScreenShareView
             screenTrack={screenShareTrack}
-            cameraTracks={cameraTracks}
+            cameraTracks={allParticipantTiles}
             hostIdentity={isHost ? localParticipant?.identity : undefined}
             isLocalSharing={isLocalScreenSharing}
             onStopShare={handleToggleScreenShare}
           />
         ) : (
           <VideoGrid
-            tracks={cameraTracks}
+            tracks={allParticipantTiles}
             hostIdentity={isHost ? localParticipant?.identity : undefined}
             coHostIdentities={coHosts}
             raisedHandIdentities={raisedHands}
