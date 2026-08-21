@@ -151,20 +151,23 @@ function MeetingRoomInner({
     if (publishedInitialRef.current) return;
     publishedInitialRef.current = true;
 
+    const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+
     if (initialAudio && !localParticipant.isMicrophoneEnabled) {
-      const audioOptions = {
-        ...ZOOM_HD_AUDIO_OPTIONS,
-        ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
-      };
-      localParticipant.setMicrophoneEnabled(true, audioOptions).catch(err => {
-        console.warn("Initial microphone publish notice:", err);
+      const audioOptions = isMobile
+        ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        : {
+            ...ZOOM_HD_AUDIO_OPTIONS,
+            ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
+          };
+      localParticipant.setMicrophoneEnabled(true, audioOptions).catch(() => {
+        localParticipant.setMicrophoneEnabled(true).catch(e => console.warn("Mic fallback init:", e));
       });
     }
 
     if (initialVideo && !localParticipant.isCameraEnabled) {
-      localParticipant.setCameraEnabled(true, { facingMode: cameraFacing }).catch(err => {
-        console.warn("Initial camera publish with facingMode failed, retrying default:", err);
-        localParticipant.setCameraEnabled(true).catch(e => console.warn("Camera init fallback failed:", e));
+      localParticipant.setCameraEnabled(true, { facingMode: cameraFacing }).catch(() => {
+        localParticipant.setCameraEnabled(true).catch(e => console.warn("Camera fallback init:", e));
       });
     }
   }, [localParticipant, connectionState, initialAudio, initialVideo, cameraFacing]);
@@ -292,11 +295,19 @@ function MeetingRoomInner({
     try {
       const isCurrentlyEnabled = localParticipant.isMicrophoneEnabled;
       if (!isCurrentlyEnabled) {
-        const audioOptions = {
-          ...ZOOM_HD_AUDIO_OPTIONS,
-          ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
-        };
-        await localParticipant.setMicrophoneEnabled(true, audioOptions);
+        const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+        const audioOptions = isMobile
+          ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+          : {
+              ...ZOOM_HD_AUDIO_OPTIONS,
+              ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
+            };
+        try {
+          await localParticipant.setMicrophoneEnabled(true, audioOptions);
+        } catch (subErr) {
+          console.warn("Audio start with constraints failed, retrying native:", subErr);
+          await localParticipant.setMicrophoneEnabled(true);
+        }
       } else {
         await localParticipant.setMicrophoneEnabled(false);
       }
