@@ -29,6 +29,9 @@ import {
   AlertTriangle,
   ArrowLeft,
   RotateCcw,
+  Copy,
+  Check,
+  Share2,
 } from "lucide-react";
 
 interface MeetingRoomProps {
@@ -66,6 +69,7 @@ function MeetingRoomInner({
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isFocusView, setIsFocusView] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -170,7 +174,7 @@ function MeetingRoomInner({
 
   const { send } = useDataChannel(onDataReceived);
 
-  // Tracks for Camera and Screen Sharing (withPlaceholder ensures smooth rendering)
+  // Tracks for Camera and Screen Sharing
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: true },
     { source: Track.Source.ScreenShare, withPlaceholder: false },
@@ -186,6 +190,13 @@ function MeetingRoomInner({
     screenShareTrack &&
     screenShareTrack.participant?.identity === localParticipant.identity
   );
+
+  const handleCopyMeetingLink = () => {
+    const url = `${window.location.origin}/meeting/${roomName}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
 
   // Media Controls Actions
   const handleToggleMic = async () => {
@@ -355,20 +366,42 @@ function MeetingRoomInner({
           </div>
         </div>
 
-        {/* Right: Security & Network Indicators */}
-        <div className="flex items-center gap-2 rounded-2xl bg-slate-900/90 px-3.5 py-2 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg">
-          <div className="flex items-center gap-1.5 text-xs sm:text-sm">
-            {connectionState === ConnectionState.Connected ? (
-              <span className="flex items-center gap-2 text-emerald-400 font-semibold text-xs sm:text-sm">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden sm:inline">Encrypted SFU</span>
-              </span>
+        {/* Right: Copy Meeting Link & Security Indicators */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            type="button"
+            onClick={handleCopyMeetingLink}
+            className="flex items-center gap-1.5 rounded-2xl bg-indigo-600/90 hover:bg-indigo-600 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white border border-indigo-400/30 backdrop-blur-xl shadow-lg transition active:scale-95"
+            title="Click to copy invitation link"
+          >
+            {copiedLink ? (
+              <>
+                <Check className="h-4 w-4 text-emerald-300" />
+                <span className="text-emerald-200">Link Copied!</span>
+              </>
             ) : (
-              <span className="flex items-center gap-1 text-amber-400 font-medium text-xs">
-                <WifiOff className="h-4 w-4" />
-                <span>Reconnecting...</span>
-              </span>
+              <>
+                <Share2 className="h-4 w-4 text-indigo-200" />
+                <span className="hidden sm:inline">Invite / Copy Link</span>
+                <span className="sm:hidden">Share</span>
+              </>
             )}
+          </button>
+
+          <div className="flex items-center gap-2 rounded-2xl bg-slate-900/90 px-3.5 py-2 border border-white/10 backdrop-blur-xl shadow-lg">
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+              {connectionState === ConnectionState.Connected ? (
+                <span className="flex items-center gap-2 text-emerald-400 font-semibold text-xs sm:text-sm">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="hidden md:inline">SFU Live</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-amber-400 font-medium text-xs">
+                  <WifiOff className="h-4 w-4" />
+                  <span>Connecting...</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -432,10 +465,7 @@ function MeetingRoomInner({
         onSendReaction={handleSendReaction}
         onLeaveMeeting={onLeave}
         onEndMeetingForAll={isHost ? handleEndMeetingForAll : undefined}
-        onCopyLink={() => {
-          const url = `${window.location.origin}/meeting/${roomName}`;
-          navigator.clipboard.writeText(url);
-        }}
+        onCopyLink={handleCopyMeetingLink}
         isRecording={isRecording}
         onToggleRecord={() => setIsRecording(!isRecording)}
       />
