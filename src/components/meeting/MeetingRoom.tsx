@@ -13,7 +13,7 @@ import {
   isTrackReference,
   TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { Track, ConnectionState } from "livekit-client";
+import { Track, ConnectionState, VideoPresets, ScreenSharePresets } from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
 import { ScreenShareView } from "./ScreenShareView";
 import { MeetingControls } from "./MeetingControls";
@@ -34,6 +34,7 @@ import {
   Share2,
   Sparkles,
 } from "lucide-react";
+import { PermissionModal } from "./PermissionModal";
 
 export const ZOOM_HD_AUDIO_OPTIONS = {
   echoCancellation: true,
@@ -80,6 +81,9 @@ function MeetingRoomInner({
   const [isRecording, setIsRecording] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [permissionMediaType, setPermissionMediaType] = useState<"camera" | "microphone" | "both">("both");
+  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -296,8 +300,14 @@ function MeetingRoomInner({
       } else {
         await localParticipant.setMicrophoneEnabled(false);
       }
-    } catch (err) {
-      console.warn("Microphone toggle notice:", err);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.warn("Microphone toggle notice:", error);
+      if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
+        setPermissionMediaType("microphone");
+        setPermissionError("Microphone permission was denied by your browser.");
+        setShowPermissionModal(true);
+      }
     }
   };
 
@@ -308,15 +318,49 @@ function MeetingRoomInner({
       if (!isCurrentlyEnabled) {
         try {
           await localParticipant.setCameraEnabled(true, { facingMode: cameraFacing });
-        } catch (e) {
+        } catch (e: unknown) {
+          const firstErr = e as Error;
+          if (firstErr?.name === "NotAllowedError" || firstErr?.name === "PermissionDeniedError") {
+            setPermissionMediaType("camera");
+            setPermissionError("Camera permission was denied by your browser.");
+            setShowPermissionModal(true);
+            return;
+          }
           console.warn("Camera start with facingMode failed, retrying standard:", e);
           await localParticipant.setCameraEnabled(true);
         }
       } else {
         await localParticipant.setCameraEnabled(false);
       }
-    } catch (err) {
-      console.warn("Camera toggle notice:", err);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.warn("Camera toggle notice:", error);
+      if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
+        setPermissionMediaType("camera");
+        setPermissionError("Camera permission was denied by your browser.");
+        setShowPermissionModal(true);
+      }
+    }
+  };
+
+  const handleRetryPermission = async () => {
+    if (!localParticipant) return;
+    try {
+      if (permissionMediaType === "microphone" || permissionMediaType === "both") {
+        const audioOptions = {
+          ...ZOOM_HD_AUDIO_OPTIONS,
+          ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
+        };
+        await localParticipant.setMicrophoneEnabled(true, audioOptions);
+      }
+      if (permissionMediaType === "camera" || permissionMediaType === "both") {
+        await localParticipant.setCameraEnabled(true, { facingMode: cameraFacing });
+      }
+      setShowPermissionModal(false);
+      setPermissionError(null);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setPermissionError(error?.message || "Permission is still blocked. Please check browser settings above.");
     }
   };
 
@@ -344,9 +388,16 @@ function MeetingRoomInner({
         await localParticipant.setScreenShareEnabled(false);
       } else {
         await localParticipant.setScreenShareEnabled(true, {
-          audio: false,
+          audio: true,
           selfBrowserSurface: "include",
           surfaceSwitching: "include",
+          systemAudio: "include",
+          resolution: {
+            width: 1920,
+            height: 1080,
+            frameRate: 30,
+          },
+          contentHint: "motion",
         });
       }
     } catch (e: unknown) {
@@ -622,6 +673,15 @@ function MeetingRoomInner({
         onMakeCoHost={handleMakeCoHost}
         onLowerHand={id => setRaisedHands(prev => prev.filter(x => x !== id))}
       />
+
+      {/* Mobile Permission Modal */}
+      <PermissionModal
+        isOpen={showPermissionModal}
+        onClose={() => setShowPermissionModal(false)}
+        onRequestPermission={handleRetryPermission}
+        mediaType={permissionMediaType}
+        errorMessage={permissionError || undefined}
+      />
     </div>
   );
 }
@@ -688,9 +748,25 @@ export function MeetingRoom({
           },
           dtx: true,
           red: true,
+          simulcast: true,
+          videoSimulcastLayers: [
+            VideoPresets.h180,
+            VideoPresets.h360,
+            VideoPresets.h720,
+          ],
+          videoCodec: "vp8",
+          screenShareEncoding: {
+            maxBitrate: 3500000,
+            maxFramerate: 30,
+          },
+          screenShareSimulcastLayers: [
+            ScreenSharePresets.h720fps15,
+            ScreenSharePresets.h1080fps30,
+          ],
         },
         audioCaptureDefaults: ZOOM_HD_AUDIO_OPTIONS,
         videoCaptureDefaults: {
+          resolution: VideoPresets.h720.resolution,
           facingMode: "user",
         },
         adaptiveStream: true,

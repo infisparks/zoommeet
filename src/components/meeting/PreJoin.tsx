@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { PermissionModal } from "./PermissionModal";
 
 interface PreJoinProps {
   meetingTitle?: string;
@@ -62,6 +63,8 @@ export function PreJoin({
 
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [permissionMediaType, setPermissionMediaType] = useState<"camera" | "microphone" | "both">("both");
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -69,101 +72,91 @@ export function PreJoin({
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Initialize preview stream
-  useEffect(() => {
-    let active = true;
+  // Request/Initialize preview stream
+  const requestMedia = async (preferredType: "camera" | "microphone" | "both" = "both") => {
+    try {
+      setPermissionError(null);
+      const audioConstraints: MediaTrackConstraints = {
+        echoCancellation: { ideal: true },
+        noiseSuppression: { ideal: true },
+        autoGainControl: { ideal: true },
+        sampleRate: { ideal: 48000 },
+        channelCount: { ideal: 1 },
+        ...(selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : {}),
+      };
 
-    async function initMedia() {
+      const constraints: MediaStreamConstraints = {
+        video: selectedVideoInput ? { deviceId: { exact: selectedVideoInput } } : true,
+        audio: audioConstraints,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setAudioEnabled(true);
+      setVideoEnabled(true);
+      setShowPermissionModal(false);
+
+      // Setup audio level analyser
       try {
-        setPermissionError(null);
-        const audioConstraints: MediaTrackConstraints = {
-          echoCancellation: { ideal: true },
-          noiseSuppression: { ideal: true },
-          autoGainControl: { ideal: true },
-          sampleRate: { ideal: 48000 },
-          channelCount: { ideal: 1 },
-          ...(selectedAudioInput ? { deviceId: { exact: selectedAudioInput } } : {}),
-        };
+        const AudioContextClass =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          const audioCtx = new AudioContextClass();
+          audioContextRef.current = audioCtx;
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          const source = audioCtx.createMediaStreamSource(stream);
+          source.connect(analyser);
 
-        const constraints: MediaStreamConstraints = {
-          video: selectedVideoInput ? { deviceId: { exact: selectedVideoInput } } : true,
-          audio: audioConstraints,
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (!active) {
-          stream.getTracks().forEach(t => t.stop());
-          return;
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const checkVolume = () => {
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+              sum += dataArray[i];
+            }
+            const avg = sum / dataArray.length;
+            setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
+            animationFrameRef.current = requestAnimationFrame(checkVolume);
+          };
+          checkVolume();
         }
+      } catch (e) {
+        console.warn("Audio meter init notice:", e);
+      }
 
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-
-        // Setup audio level analyser
-        try {
-          const AudioContextClass =
-            window.AudioContext ||
-            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-          if (AudioContextClass) {
-            const audioCtx = new AudioContextClass();
-            audioContextRef.current = audioCtx;
-            const analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 64;
-            const source = audioCtx.createMediaStreamSource(stream);
-            source.connect(analyser);
-
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-            const checkVolume = () => {
-              if (!active) return;
-              analyser.getByteFrequencyData(dataArray);
-              let sum = 0;
-              for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-              }
-              const avg = sum / dataArray.length;
-              setAudioLevel(Math.min(100, Math.round((avg / 128) * 100)));
-              animationFrameRef.current = requestAnimationFrame(checkVolume);
-            };
-            checkVolume();
-          }
-        } catch (e) {
-          console.warn("Audio meter init notice:", e);
-        }
-
-        // Enumerate devices
-        const allDevices = await navigator.mediaDevices.enumerateDevices();
-        setDevices({
-          audioInputs: allDevices.filter(d => d.kind === "audioinput"),
-          videoInputs: allDevices.filter(d => d.kind === "videoinput"),
-          audioOutputs: allDevices.filter(d => d.kind === "audiooutput"),
-        });
-      } catch (err: unknown) {
-        const error = err as Error;
-        console.warn("Media preview access warning:", error);
-        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-          setPermissionError("Camera / Microphone access was denied. You will join in listen mode.");
-          setAudioEnabled(false);
-          setVideoEnabled(false);
-        } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-          setPermissionError("No camera or microphone hardware detected. You will join in listen/view mode.");
-          setAudioEnabled(false);
-          setVideoEnabled(false);
-        } else {
-          setPermissionError("Hardware preview unavailable. Joining in listen mode.");
-          setAudioEnabled(false);
-          setVideoEnabled(false);
-        }
+      // Enumerate devices
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      setDevices({
+        audioInputs: allDevices.filter(d => d.kind === "audioinput"),
+        videoInputs: allDevices.filter(d => d.kind === "videoinput"),
+        audioOutputs: allDevices.filter(d => d.kind === "audiooutput"),
+      });
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.warn("Media preview access warning:", error);
+      setPermissionMediaType(preferredType);
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        setPermissionError("Camera / Microphone access was denied by your browser.");
+        setShowPermissionModal(true);
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        setPermissionError("No camera or microphone hardware detected.");
+      } else {
+        setPermissionError("Hardware preview unavailable on this device.");
       }
     }
+  };
 
+  useEffect(() => {
     if (typeof window !== "undefined" && typeof navigator !== "undefined" && navigator.mediaDevices) {
-      initMedia();
+      requestMedia("both");
     }
 
     return () => {
-      active = false;
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
       if (streamRef.current) {
@@ -173,19 +166,23 @@ export function PreJoin({
   }, [selectedAudioInput, selectedVideoInput]);
 
   // Handle Track Mute/Unmute in preview
-  const toggleAudio = () => {
-    if (streamRef.current) {
-      const audioTracks = streamRef.current.getAudioTracks();
-      audioTracks.forEach(t => (t.enabled = !audioEnabled));
+  const toggleAudio = async () => {
+    if (!streamRef.current || streamRef.current.getAudioTracks().length === 0) {
+      await requestMedia("microphone");
+      return;
     }
+    const audioTracks = streamRef.current.getAudioTracks();
+    audioTracks.forEach(t => (t.enabled = !audioEnabled));
     setAudioEnabled(!audioEnabled);
   };
 
-  const toggleVideo = () => {
-    if (streamRef.current) {
-      const videoTracks = streamRef.current.getVideoTracks();
-      videoTracks.forEach(t => (t.enabled = !videoEnabled));
+  const toggleVideo = async () => {
+    if (!streamRef.current || streamRef.current.getVideoTracks().length === 0) {
+      await requestMedia("camera");
+      return;
     }
+    const videoTracks = streamRef.current.getVideoTracks();
+    videoTracks.forEach(t => (t.enabled = !videoEnabled));
     setVideoEnabled(!videoEnabled);
   };
 
@@ -237,12 +234,21 @@ export function PreJoin({
 
         {/* Notice alert */}
         {permissionError && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex items-start gap-2.5">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
-            <div>
-              <p className="font-semibold text-amber-300">Device Hardware Notice</p>
-              <p className="mt-0.5 text-amber-200/90">{permissionError}</p>
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-300">Device Hardware Notice</p>
+                <p className="mt-0.5 text-amber-200/90">{permissionError}</p>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowPermissionModal(true)}
+              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shrink-0 cursor-pointer self-start sm:self-auto"
+            >
+              How to Unblock
+            </button>
           </div>
         )}
 
@@ -433,6 +439,15 @@ export function PreJoin({
           </div>
         </div>
       </div>
+
+      {/* Mobile Permission Modal */}
+      <PermissionModal
+        isOpen={showPermissionModal}
+        onClose={() => setShowPermissionModal(false)}
+        onRequestPermission={() => requestMedia(permissionMediaType)}
+        mediaType={permissionMediaType}
+        errorMessage={permissionError || undefined}
+      />
     </div>
   );
 }
