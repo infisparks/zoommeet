@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   LiveKitRoom,
@@ -29,7 +29,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   RotateCcw,
-  Copy,
   Check,
   Share2,
 } from "lucide-react";
@@ -81,6 +80,7 @@ function MeetingRoomInner({
 
   // Meeting Duration Timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const publishedInitialRef = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -99,22 +99,24 @@ function MeetingRoomInner({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Attempt initial audio/video publishing safely
+  // Attempt initial audio/video publishing ONLY once fully connected
   useEffect(() => {
-    if (!localParticipant) return;
+    if (!localParticipant || connectionState !== ConnectionState.Connected) return;
+    if (publishedInitialRef.current) return;
+    publishedInitialRef.current = true;
 
-    if (initialAudio) {
+    if (initialAudio && !localParticipant.isMicrophoneEnabled) {
       localParticipant.setMicrophoneEnabled(true).catch(err => {
         console.warn("Initial microphone publish notice:", err);
       });
     }
 
-    if (initialVideo) {
+    if (initialVideo && !localParticipant.isCameraEnabled) {
       localParticipant.setCameraEnabled(true).catch(err => {
         console.warn("Initial camera publish notice:", err);
       });
     }
-  }, [localParticipant, initialAudio, initialVideo]);
+  }, [localParticipant, connectionState, initialAudio, initialVideo]);
 
   // Load initial chat history
   useEffect(() => {
@@ -371,7 +373,7 @@ function MeetingRoomInner({
           <button
             type="button"
             onClick={handleCopyMeetingLink}
-            className="flex items-center gap-1.5 rounded-2xl bg-indigo-600/90 hover:bg-indigo-600 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white border border-indigo-400/30 backdrop-blur-xl shadow-lg transition active:scale-95"
+            className="flex items-center gap-1.5 rounded-2xl bg-indigo-600/90 hover:bg-indigo-600 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white border border-indigo-400/30 backdrop-blur-xl shadow-lg transition active:scale-95 cursor-pointer"
             title="Click to copy invitation link"
           >
             {copiedLink ? (
@@ -552,15 +554,15 @@ export function MeetingRoom({
       className="h-screen w-screen bg-[#070B14]"
       onError={err => {
         const msg = err?.message || "";
+        // Only set error for fatal token validation rejection, NEVER for reconnection/signaling retry
         if (
           msg.includes("token signature is invalid") ||
-          msg.includes("invalid token") ||
-          msg.includes("could not establish signal connection")
+          msg.includes("invalid token")
         ) {
-          console.error("Fatal LiveKit auth failure:", err);
+          console.error("Fatal LiveKit token signature error:", err);
           setConnectError(msg || "Authentication token rejected by LiveKit server.");
         } else {
-          console.warn("LiveKit non-fatal event:", msg);
+          console.warn("LiveKit non-fatal engine event:", msg);
         }
       }}
     >
