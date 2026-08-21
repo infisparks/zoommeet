@@ -65,7 +65,7 @@ export function ParticipantTile({
     >
       {/* Real Video Track or Avatar Fallback */}
       {isRealTrack && hasVideoTrack ? (
-        <div className="h-full w-full">
+        <div className={`h-full w-full ${trackRef?.participant?.isLocal ? "scale-x-[-1]" : ""}`}>
           <VideoTrack
             trackRef={trackRef as TrackReference}
             className="h-full w-full object-cover"

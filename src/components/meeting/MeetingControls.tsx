@@ -18,6 +18,9 @@ import {
   Copy,
   Check,
   MoreVertical,
+  MoreHorizontal,
+  RefreshCw,
+  X,
 } from "lucide-react";
 
 interface MeetingControlsProps {
@@ -44,6 +47,7 @@ interface MeetingControlsProps {
   onEndMeetingForAll?: () => void;
   onCopyLink?: () => void;
   onToggleRecord?: () => void;
+  onFlipCamera?: () => void;
 }
 
 const EMOJI_LIST = ["👍", "👏", "❤️", "🎉", "🔥", "😂", "✋", "😮"];
@@ -70,9 +74,11 @@ export function MeetingControls({
   onLeaveMeeting,
   onEndMeetingForAll,
   onCopyLink,
+  onFlipCamera,
 }: MeetingControlsProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLeaveMenu, setShowLeaveMenu] = useState(false);
+  const [showMobileMore, setShowMobileMore] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -84,204 +90,349 @@ export function MeetingControls({
   };
 
   return (
-    <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center pointer-events-auto max-w-[96vw]">
-      {/* Floating Control Bar */}
-      <div className="glass-control-bar flex items-center gap-1.5 sm:gap-2.5 rounded-2xl px-2.5 sm:px-5 py-2.5 text-white">
-        {/* Microphone */}
-        <button
-          onClick={onToggleMic}
-          className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            isMuted
-              ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
-              : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
-          }`}
-          title={isMuted ? "Unmute Mic" : "Mute Mic"}
-        >
-          {isMuted ? <MicOff className="h-5 w-5 text-white" /> : <Mic className="h-5 w-5 text-emerald-400" />}
-          <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isMuted ? "Unmute" : "Mute"}</span>
-        </button>
-
-        {/* Video Camera */}
-        <button
-          onClick={onToggleVideo}
-          className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            isVideoMuted
-              ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
-              : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
-          }`}
-          title={isVideoMuted ? "Start Camera" : "Stop Camera"}
-        >
-          {isVideoMuted ? <VideoOff className="h-5 w-5 text-white" /> : <VideoIcon className="h-5 w-5 text-indigo-400" />}
-          <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isVideoMuted ? "Start" : "Stop"}</span>
-        </button>
-
-        <div className="h-7 w-px bg-white/15 mx-0.5 hidden sm:block" />
-
-        {/* Screen Share */}
-        <button
-          onClick={onToggleScreenShare}
-          className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            isScreenSharing
-              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
-              : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
-          }`}
-          title="Share Screen"
-        >
-          {isScreenSharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
-          <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isScreenSharing ? "Sharing" : "Share"}</span>
-        </button>
-
-        {/* Raise Hand */}
-        <button
-          onClick={onToggleHand}
-          className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            isHandRaised
-              ? "bg-amber-400 text-slate-950 shadow-md font-bold"
-              : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
-          }`}
-          title="Raise Hand"
-        >
-          <Hand className={`h-5 w-5 ${isHandRaised ? "text-slate-950 fill-current" : ""}`} />
-          <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isHandRaised ? "Raised" : "Hand"}</span>
-        </button>
-
-        {/* Emoji Reactions Picker */}
-        <div className="relative">
+    <>
+      {/* Floating Bottom Control Bar */}
+      <div className="fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center pointer-events-auto w-full px-2 sm:px-0 sm:w-auto max-w-[100vw] sm:max-w-[96vw] pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="glass-control-bar flex items-center justify-between sm:justify-center gap-1 sm:gap-2.5 rounded-2xl px-2 sm:px-5 py-2 text-white w-full sm:w-auto shadow-2xl border border-white/10 backdrop-blur-2xl bg-[#0E1626]/90">
+          
+          {/* 1. Microphone */}
           <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
-              showEmojiPicker
-                ? "bg-indigo-600 text-white"
+            type="button"
+            onClick={onToggleMic}
+            className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer shrink-0 ${
+              isMuted
+                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
+                : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
+            }`}
+            title={isMuted ? "Unmute Mic" : "Mute Mic"}
+          >
+            {isMuted ? <MicOff className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" /> : <Mic className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-400" />}
+            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isMuted ? "Unmute" : "Mute"}</span>
+          </button>
+
+          {/* 2. Video Camera */}
+          <button
+            type="button"
+            onClick={onToggleVideo}
+            className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer shrink-0 ${
+              isVideoMuted
+                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
+                : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
+            }`}
+            title={isVideoMuted ? "Start Camera" : "Stop Camera"}
+          >
+            {isVideoMuted ? <VideoOff className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" /> : <VideoIcon className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-indigo-400" />}
+            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isVideoMuted ? "Start" : "Stop"}</span>
+          </button>
+
+          {/* 3. Screen Share (Desktop Only) */}
+          <button
+            type="button"
+            onClick={onToggleScreenShare}
+            className={`hidden md:flex flex-col items-center justify-center h-13 w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
+              isScreenSharing
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
                 : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
             }`}
-            title="Reactions"
+            title="Share Screen"
           >
-            <Smile className="h-5 w-5" />
-            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">React</span>
+            {isScreenSharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
+            <span className="mt-0.5 text-[11px] font-medium">{isScreenSharing ? "Sharing" : "Share"}</span>
           </button>
 
-          {showEmojiPicker && (
-            <div className="absolute bottom-18 left-1/2 -translate-x-1/2 rounded-2xl border border-white/20 bg-slate-900/98 p-2.5 backdrop-blur-2xl shadow-2xl flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150">
-              {EMOJI_LIST.map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={() => {
-                    onSendReaction(emoji);
-                    setShowEmojiPicker(false);
-                  }}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl text-2xl hover:bg-white/10 hover:scale-125 transition-transform cursor-pointer"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+          {/* 4. Raise Hand (Desktop Only) */}
+          <button
+            type="button"
+            onClick={onToggleHand}
+            className={`hidden sm:flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
+              isHandRaised
+                ? "bg-amber-400 text-slate-950 shadow-md font-bold"
+                : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
+            }`}
+            title="Raise Hand"
+          >
+            <Hand className={`h-5 w-5 ${isHandRaised ? "text-slate-950 fill-current" : ""}`} />
+            <span className="mt-0.5 text-[11px] font-medium">{isHandRaised ? "Raised" : "Hand"}</span>
+          </button>
 
-        <div className="h-7 w-px bg-white/15 mx-0.5 hidden sm:block" />
+          {/* 5. Emoji Reactions Picker (Desktop Only) */}
+          <div className="relative hidden sm:block">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                showEmojiPicker
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
+              }`}
+              title="Reactions"
+            >
+              <Smile className="h-5 w-5" />
+              <span className="mt-0.5 text-[11px] font-medium">React</span>
+            </button>
 
-        {/* Participants Panel */}
-        <button
-          onClick={onToggleParticipants}
-          className={`relative flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            isParticipantsOpen
-              ? "bg-indigo-600 text-white shadow-md"
-              : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
-          }`}
-          title="Participants"
-        >
-          <Users className="h-5 w-5" />
-          <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">People</span>
-          <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-bold text-white shadow-xs">
-            {participantCount}
-          </span>
-        </button>
+            {showEmojiPicker && (
+              <div className="absolute bottom-18 left-1/2 -translate-x-1/2 rounded-2xl border border-white/20 bg-slate-900/98 p-2.5 backdrop-blur-2xl shadow-2xl flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150 z-50">
+                {EMOJI_LIST.map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      onSendReaction(emoji);
+                      setShowEmojiPicker(false);
+                    }}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-2xl hover:bg-white/10 hover:scale-125 transition-transform cursor-pointer"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Chat Panel */}
-        <button
-          onClick={onToggleChat}
-          className={`relative flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
-            isChatOpen
-              ? "bg-indigo-600 text-white shadow-md"
-              : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
-          }`}
-          title="Chat"
-        >
-          <MessageSquare className="h-5 w-5" />
-          <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">Chat</span>
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white animate-pulse">
-              {unreadCount}
+          <div className="h-7 w-px bg-white/15 mx-0.5 hidden sm:block" />
+
+          {/* 6. Chat Panel */}
+          <button
+            type="button"
+            onClick={onToggleChat}
+            className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer shrink-0 ${
+              isChatOpen
+                ? "bg-indigo-600 text-white shadow-md"
+                : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
+            }`}
+            title="Chat"
+          >
+            <MessageSquare className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">Chat</span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 sm:h-5 sm:min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] sm:text-[10px] font-bold text-white animate-pulse">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* 7. Participants Panel */}
+          <button
+            type="button"
+            onClick={onToggleParticipants}
+            className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer shrink-0 ${
+              isParticipantsOpen
+                ? "bg-indigo-600 text-white shadow-md"
+                : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
+            }`}
+            title="Participants"
+          >
+            <Users className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">People</span>
+            <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 sm:h-5 sm:min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1 text-[9px] sm:text-[10px] font-bold text-white shadow-xs">
+              {participantCount}
             </span>
-          )}
-        </button>
+          </button>
 
-        {/* View Mode Grid/Focus */}
-        <button
-          onClick={onToggleViewMode}
-          className="hidden md:flex flex-col items-center justify-center h-13 w-15 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer"
-          title={isFocusView ? "Grid View" : "Speaker Focus View"}
-        >
-          {isFocusView ? <LayoutGrid className="h-5 w-5" /> : <Square className="h-5 w-5" />}
-          <span className="mt-0.5 text-[11px] font-medium">{isFocusView ? "Grid" : "Focus"}</span>
-        </button>
-
-        {/* Copy Invite Link */}
-        {onCopyLink && (
+          {/* 8. View Mode (Desktop Only) */}
           <button
-            onClick={handleCopy}
+            type="button"
+            onClick={onToggleViewMode}
             className="hidden lg:flex flex-col items-center justify-center h-13 w-15 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer"
-            title="Copy Meeting Invite Link"
+            title={isFocusView ? "Grid View" : "Speaker Focus View"}
           >
-            {copied ? <Check className="h-5 w-5 text-emerald-400" /> : <Copy className="h-5 w-5" />}
-            <span className="mt-0.5 text-[11px] font-medium">{copied ? "Copied" : "Invite"}</span>
-          </button>
-        )}
-
-        <div className="h-7 w-px bg-white/15 mx-0.5" />
-
-        {/* Leave / End Meeting Button */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              if (isHost && onEndMeetingForAll) {
-                setShowLeaveMenu(!showLeaveMenu);
-              } else {
-                onLeaveMeeting();
-              }
-            }}
-            className="flex items-center gap-2 h-11 sm:h-13 px-4 sm:px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-rose-600/35 cursor-pointer active:scale-95"
-            title="Leave Meeting"
-          >
-            <PhoneOff className="h-4 sm:h-5 w-4 sm:w-5" />
-            <span className="hidden sm:inline">Leave</span>
-            {isHost && onEndMeetingForAll && <MoreVertical className="h-4 w-4 ml-0.5" />}
+            {isFocusView ? <LayoutGrid className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+            <span className="mt-0.5 text-[11px] font-medium">{isFocusView ? "Grid" : "Focus"}</span>
           </button>
 
-          {showLeaveMenu && isHost && (
-            <div className="absolute bottom-18 right-0 w-52 rounded-2xl border border-white/20 bg-slate-900/98 p-2.5 backdrop-blur-2xl shadow-2xl space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
-              <button
-                onClick={() => {
-                  setShowLeaveMenu(false);
-                  onLeaveMeeting();
-                }}
-                className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-200 hover:bg-white/10 rounded-xl cursor-pointer"
-              >
-                Leave Room
-              </button>
-              <button
-                onClick={() => {
-                  setShowLeaveMenu(false);
-                  if (onEndMeetingForAll) onEndMeetingForAll();
-                }}
-                className="w-full text-left px-3.5 py-2.5 text-xs sm:text-sm font-bold text-rose-400 hover:bg-rose-950/70 rounded-xl cursor-pointer"
-              >
-                End Meeting for All
-              </button>
-            </div>
+          {/* 9. Copy Link (Desktop Only) */}
+          {onCopyLink && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="hidden xl:flex flex-col items-center justify-center h-13 w-15 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer"
+              title="Copy Meeting Invite Link"
+            >
+              {copied ? <Check className="h-5 w-5 text-emerald-400" /> : <Copy className="h-5 w-5" />}
+              <span className="mt-0.5 text-[11px] font-medium">{copied ? "Copied" : "Invite"}</span>
+            </button>
           )}
+
+          {/* 10. Mobile More Button (⋯) */}
+          <button
+            type="button"
+            onClick={() => setShowMobileMore(!showMobileMore)}
+            className="sm:hidden flex flex-col items-center justify-center h-11 w-11 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-all cursor-pointer shrink-0"
+            title="More Options"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+
+          <div className="h-6 sm:h-7 w-px bg-white/15 mx-0.5" />
+
+          {/* 11. Leave / End Button */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (isHost && onEndMeetingForAll) {
+                  setShowLeaveMenu(!showLeaveMenu);
+                } else {
+                  onLeaveMeeting();
+                }
+              }}
+              className="flex items-center justify-center gap-1.5 h-11 sm:h-13 px-3 sm:px-5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-rose-600/35 cursor-pointer active:scale-95"
+              title="Leave Meeting"
+            >
+              <PhoneOff className="h-4 sm:h-5 w-4 sm:w-5" />
+              <span className="hidden sm:inline">Leave</span>
+              {isHost && onEndMeetingForAll && <MoreVertical className="h-3.5 sm:h-4 w-3.5 sm:w-4 ml-0.5" />}
+            </button>
+
+            {showLeaveMenu && isHost && (
+              <div className="absolute bottom-16 sm:bottom-18 right-0 w-48 sm:w-52 rounded-2xl border border-white/20 bg-slate-900/98 p-2 backdrop-blur-2xl shadow-2xl space-y-1.5 animate-in fade-in zoom-in-95 duration-150 z-50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLeaveMenu(false);
+                    onLeaveMeeting();
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs sm:text-sm font-semibold text-slate-200 hover:bg-white/10 rounded-xl cursor-pointer"
+                >
+                  Leave Room
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLeaveMenu(false);
+                    if (onEndMeetingForAll) onEndMeetingForAll();
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs sm:text-sm font-bold text-rose-400 hover:bg-rose-950/70 rounded-xl cursor-pointer"
+                >
+                  End Meeting for All
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Mobile "More Options" Bottom Action Sheet */}
+      {showMobileMore && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm sm:hidden flex flex-col justify-end animate-in fade-in duration-200"
+          onClick={() => setShowMobileMore(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl bg-[#0D1527] border-t border-white/15 p-5 text-white shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Sheet Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <span className="font-bold text-sm text-slate-200">Meeting Options</span>
+              <button
+                type="button"
+                onClick={() => setShowMobileMore(false)}
+                className="rounded-full p-1 text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Quick Emoji Reactions */}
+            <div>
+              <p className="text-xs text-slate-400 font-medium mb-2">Reactions</p>
+              <div className="flex items-center justify-between gap-1 overflow-x-auto py-1">
+                {EMOJI_LIST.map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      onSendReaction(emoji);
+                      setShowMobileMore(false);
+                    }}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15 text-2xl active:scale-125 transition-transform"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Grid */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              {/* Flip Camera */}
+              {onFlipCamera && !isVideoMuted && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onFlipCamera();
+                    setShowMobileMore(false);
+                  }}
+                  className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10"
+                >
+                  <RefreshCw className="h-4.5 w-4.5 text-indigo-400" />
+                  <span>Flip Camera</span>
+                </button>
+              )}
+
+              {/* Raise Hand */}
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleHand();
+                  setShowMobileMore(false);
+                }}
+                className={`flex items-center gap-2.5 rounded-xl p-3 text-xs font-semibold ${
+                  isHandRaised
+                    ? "bg-amber-400 text-slate-950 font-bold"
+                    : "bg-white/5 text-slate-200 hover:bg-white/10"
+                }`}
+              >
+                <Hand className={`h-4.5 w-4.5 ${isHandRaised ? "text-slate-950 fill-current" : "text-amber-400"}`} />
+                <span>{isHandRaised ? "Lower Hand" : "Raise Hand"}</span>
+              </button>
+
+              {/* Copy Invite Link */}
+              {onCopyLink && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCopy();
+                    setShowMobileMore(false);
+                  }}
+                  className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10"
+                >
+                  <Copy className="h-4.5 w-4.5 text-emerald-400" />
+                  <span>{copied ? "Link Copied!" : "Copy Invite"}</span>
+                </button>
+              )}
+
+              {/* Toggle View Mode */}
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleViewMode();
+                  setShowMobileMore(false);
+                }}
+                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10"
+              >
+                {isFocusView ? <LayoutGrid className="h-4.5 w-4.5 text-blue-400" /> : <Square className="h-4.5 w-4.5 text-blue-400" />}
+                <span>{isFocusView ? "Grid View" : "Speaker Focus"}</span>
+              </button>
+
+              {/* Screen Share on Mobile */}
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleScreenShare();
+                  setShowMobileMore(false);
+                }}
+                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 col-span-2"
+              >
+                <ScreenShare className="h-4.5 w-4.5 text-indigo-400" />
+                <span>{isScreenSharing ? "Stop Screen Share" : "Share Screen"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

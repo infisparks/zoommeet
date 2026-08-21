@@ -79,6 +79,7 @@ function MeetingRoomInner({
   const [isFocusView, setIsFocusView] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -136,11 +137,12 @@ function MeetingRoomInner({
     }
 
     if (initialVideo && !localParticipant.isCameraEnabled) {
-      localParticipant.setCameraEnabled(true).catch(err => {
-        console.warn("Initial camera publish notice:", err);
+      localParticipant.setCameraEnabled(true, { facingMode: cameraFacing }).catch(err => {
+        console.warn("Initial camera publish with facingMode failed, retrying default:", err);
+        localParticipant.setCameraEnabled(true).catch(e => console.warn("Camera init fallback failed:", e));
       });
     }
-  }, [localParticipant, connectionState, initialAudio, initialVideo]);
+  }, [localParticipant, connectionState, initialAudio, initialVideo, cameraFacing]);
 
   // Load initial chat history
   useEffect(() => {
@@ -278,9 +280,34 @@ function MeetingRoomInner({
     if (!localParticipant) return;
     try {
       const isCurrentlyEnabled = localParticipant.isCameraEnabled;
-      await localParticipant.setCameraEnabled(!isCurrentlyEnabled);
+      if (!isCurrentlyEnabled) {
+        try {
+          await localParticipant.setCameraEnabled(true, { facingMode: cameraFacing });
+        } catch (e) {
+          console.warn("Camera start with facingMode failed, retrying standard:", e);
+          await localParticipant.setCameraEnabled(true);
+        }
+      } else {
+        await localParticipant.setCameraEnabled(false);
+      }
     } catch (err) {
       console.warn("Camera toggle notice:", err);
+    }
+  };
+
+  const handleFlipCamera = async () => {
+    if (!localParticipant) return;
+    try {
+      const nextFacing = cameraFacing === "user" ? "environment" : "user";
+      await localParticipant.setCameraEnabled(false);
+      try {
+        await localParticipant.setCameraEnabled(true, { facingMode: nextFacing });
+      } catch {
+        await localParticipant.setCameraEnabled(true);
+      }
+      setCameraFacing(nextFacing);
+    } catch (err) {
+      console.warn("Flip camera notice:", err);
     }
   };
 
@@ -408,7 +435,7 @@ function MeetingRoomInner({
     : false;
 
   return (
-    <div className="relative flex h-screen w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif]">
+    <div className="relative flex h-[100dvh] w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif]">
       {/* Audio Renderer for remote audio tracks */}
       <RoomAudioRenderer />
 
@@ -548,6 +575,7 @@ function MeetingRoomInner({
         onCopyLink={handleCopyMeetingLink}
         isRecording={isRecording}
         onToggleRecord={() => setIsRecording(!isRecording)}
+        onFlipCamera={handleFlipCamera}
       />
 
       {/* Slide-out Panels */}
@@ -637,11 +665,14 @@ export function MeetingRoom({
           red: true,
         },
         audioCaptureDefaults: ZOOM_HD_AUDIO_OPTIONS,
+        videoCaptureDefaults: {
+          facingMode: "user",
+        },
         adaptiveStream: true,
         dynacast: true,
       }}
       data-lk-theme="default"
-      className="h-screen w-screen bg-[#070B14]"
+      className="h-[100dvh] w-screen bg-[#070B14]"
       onError={err => {
         const msg = err?.message || "";
         // Only set error for fatal token validation rejection, NEVER for reconnection/signaling retry
