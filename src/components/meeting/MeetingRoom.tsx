@@ -94,6 +94,23 @@ function MeetingRoomInner({
   const [participantToast, setParticipantToast] = useState<string | null>(null);
   const publishedInitialRef = useRef(false);
   const prevCountRef = useRef(participants.length);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const krispProcessorRef = useRef<any>(null);
+
+  // Initialize Krisp AI Deep-Learning Noise Filter
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    import("@livekit/krisp-noise-filter")
+      .then(({ isKrispNoiseFilterSupported, KrispNoiseFilter }) => {
+        if (isKrispNoiseFilterSupported()) {
+          const processor = KrispNoiseFilter();
+          krispProcessorRef.current = processor;
+        }
+      })
+      .catch(err => {
+        console.warn("Krisp AI noise filter load notice:", err);
+      });
+  }, []);
 
   useEffect(() => {
     if (participants.length > prevCountRef.current && prevCountRef.current > 0) {
@@ -131,7 +148,11 @@ function MeetingRoomInner({
     publishedInitialRef.current = true;
 
     if (initialAudio && !localParticipant.isMicrophoneEnabled) {
-      localParticipant.setMicrophoneEnabled(true, ZOOM_HD_AUDIO_OPTIONS).catch(err => {
+      const audioOptions = {
+        ...ZOOM_HD_AUDIO_OPTIONS,
+        ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
+      };
+      localParticipant.setMicrophoneEnabled(true, audioOptions).catch(err => {
         console.warn("Initial microphone publish notice:", err);
       });
     }
@@ -267,7 +288,11 @@ function MeetingRoomInner({
     try {
       const isCurrentlyEnabled = localParticipant.isMicrophoneEnabled;
       if (!isCurrentlyEnabled) {
-        await localParticipant.setMicrophoneEnabled(true, ZOOM_HD_AUDIO_OPTIONS);
+        const audioOptions = {
+          ...ZOOM_HD_AUDIO_OPTIONS,
+          ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
+        };
+        await localParticipant.setMicrophoneEnabled(true, audioOptions);
       } else {
         await localParticipant.setMicrophoneEnabled(false);
       }
