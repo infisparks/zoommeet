@@ -16,7 +16,8 @@ interface PageProps {
 
 export default function MeetingRoomPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const meetingId = resolvedParams.meetingId;
+  const rawMeetingId = resolvedParams.meetingId;
+  const meetingId = decodeURIComponent(rawMeetingId).trim().toLowerCase();
 
   const { user } = useAuth();
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
           setMeeting(found);
         }
       } catch (err) {
-        console.warn("Could not fetch local meeting metadata:", err);
+        console.warn("Could not fetch meeting metadata:", err);
       } finally {
         setIsLoading(false);
       }
@@ -83,7 +84,8 @@ export default function MeetingRoomPage({ params }: PageProps) {
     setInitialVideo(videoEnabled);
 
     try {
-      const roomName = meeting?.roomName || meetingId;
+      // Normalize room name so all participants connect to identical room string
+      const roomName = (meeting?.roomName || meetingId).trim().toLowerCase();
       const role = isHost ? "host" : "participant";
 
       // ALWAYS generate a unique participant identity per tab/device to prevent collisions
@@ -97,7 +99,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomName,
-          participantName: displayName,
+          participantName: displayName || "Guest Attendee",
           participantIdentity: uniqueIdentity,
           role,
         }),
@@ -128,7 +130,11 @@ export default function MeetingRoomPage({ params }: PageProps) {
   const handleLeave = () => {
     setInMeeting(false);
     setIsWaiting(false);
-    router.push("/dashboard");
+    if (user) {
+      router.push("/dashboard");
+    } else {
+      router.push("/");
+    }
   };
 
   if (isLoading) {
@@ -160,7 +166,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
       <MeetingRoom
         serverUrl={serverUrl}
         token={token}
-        roomName={meeting?.roomName || meetingId}
+        roomName={(meeting?.roomName || meetingId).trim().toLowerCase()}
         meetingTitle={meeting?.title}
         isHost={isHost}
         initialAudio={initialAudio}

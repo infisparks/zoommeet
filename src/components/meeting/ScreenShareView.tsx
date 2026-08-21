@@ -27,11 +27,11 @@ export function ScreenShareView({
   onStopShare,
 }: ScreenShareViewProps) {
   const sharerName =
-    screenTrack.participant.name ||
-    screenTrack.participant.identity ||
+    screenTrack?.participant?.name ||
+    screenTrack?.participant?.identity ||
     "A participant";
 
-  const isRealTrack = isTrackReference(screenTrack);
+  const isRealTrack = isTrackReference(screenTrack) && screenTrack?.publication?.track;
 
   return (
     <div className="flex h-full w-full flex-col gap-2.5 p-2 sm:p-4">
@@ -64,7 +64,11 @@ export function ScreenShareView({
             className="h-full w-full object-contain"
           />
         ) : (
-          <div className="text-slate-400 text-xs sm:text-sm">Connecting to screen feed...</div>
+          <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
+            <Monitor className="w-10 h-10 text-indigo-400 mb-2 animate-pulse" />
+            <p className="text-sm font-semibold text-slate-200">Connecting to {sharerName}&apos;s screen stream...</p>
+            <p className="text-xs text-slate-500 mt-1">LiveKit WebRTC stream is subscribing</p>
+          </div>
         )}
       </div>
 
@@ -72,10 +76,10 @@ export function ScreenShareView({
       {cameraTracks.length > 0 && (
         <div className="flex h-24 sm:h-36 w-full gap-2.5 overflow-x-auto pb-1 shrink-0">
           {cameraTracks.map(track => (
-            <div key={track.participant.identity + track.source} className="h-full aspect-video shrink-0 min-w-[120px]">
+            <div key={track.participant?.identity + track.source} className="h-full aspect-video shrink-0 min-w-[120px]">
               <ParticipantTile
                 trackRef={track}
-                isHost={track.participant.identity === hostIdentity}
+                isHost={track.participant?.identity === hostIdentity}
               />
             </div>
           ))}

@@ -170,7 +170,7 @@ function MeetingRoomInner({
 
   const { send } = useDataChannel(onDataReceived);
 
-  // Tracks for Camera and Screen Sharing
+  // Tracks for Camera and Screen Sharing (withPlaceholder ensures smooth rendering)
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: true },
     { source: Track.Source.ScreenShare, withPlaceholder: false },
@@ -178,13 +178,13 @@ function MeetingRoomInner({
 
   const cameraTracks = tracks.filter(t => t.source === Track.Source.Camera);
   const screenShareTrack = tracks.find(
-    t => t.source === Track.Source.ScreenShare && isTrackReference(t) && t.publication?.track
+    t => t.source === Track.Source.ScreenShare && isTrackReference(t)
   );
 
   const isLocalScreenSharing = Boolean(
     localParticipant &&
     screenShareTrack &&
-    screenShareTrack.participant.identity === localParticipant.identity
+    screenShareTrack.participant?.identity === localParticipant.identity
   );
 
   // Media Controls Actions
@@ -223,7 +223,7 @@ function MeetingRoomInner({
       }
     } catch (e: unknown) {
       const err = e as Error;
-      console.warn("Screen share notice (not fatal):", err?.message || err);
+      console.warn("Screen share notice:", err?.message || err);
     }
   };
 
@@ -522,7 +522,6 @@ export function MeetingRoom({
       className="h-screen w-screen bg-[#070B14]"
       onError={err => {
         const msg = err?.message || "";
-        // Only trigger fatal disconnect on genuine signal/auth failures
         if (
           msg.includes("token signature is invalid") ||
           msg.includes("invalid token") ||
@@ -531,13 +530,8 @@ export function MeetingRoom({
           console.error("Fatal LiveKit auth failure:", err);
           setConnectError(msg || "Authentication token rejected by LiveKit server.");
         } else {
-          // Media/permission/cancel errors are non-fatal and should never disconnect
           console.warn("LiveKit non-fatal event:", msg);
         }
-      }}
-      onDisconnected={() => {
-        console.log("Disconnected from room");
-        onLeave();
       }}
     >
       <MeetingRoomInner
