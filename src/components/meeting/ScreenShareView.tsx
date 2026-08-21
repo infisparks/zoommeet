@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   TrackReferenceOrPlaceholder,
   TrackReference,
@@ -8,7 +8,7 @@ import {
   isTrackReference,
 } from "@livekit/components-react";
 import { ParticipantTile } from "./ParticipantTile";
-import { Monitor, StopCircle } from "lucide-react";
+import { Monitor, StopCircle, Layout, PictureInPicture, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface ScreenShareViewProps {
@@ -19,6 +19,8 @@ interface ScreenShareViewProps {
   onStopShare?: () => void;
 }
 
+type LayoutMode = "pip" | "filmstrip" | "screenOnly";
+
 export function ScreenShareView({
   screenTrack,
   cameraTracks,
@@ -26,6 +28,9 @@ export function ScreenShareView({
   isLocalSharing = false,
   onStopShare,
 }: ScreenShareViewProps) {
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("pip");
+  const [pipPosition, setPipPosition] = useState<"bottom-right" | "bottom-left" | "top-right">("bottom-right");
+
   const sharerName =
     screenTrack?.participant?.name ||
     screenTrack?.participant?.identity ||
@@ -33,31 +38,97 @@ export function ScreenShareView({
 
   const isRealTrack = isTrackReference(screenTrack) && screenTrack?.publication?.track;
 
+  // Find the primary camera track (local user or active speaker/sharer)
+  const pipCameraTrack =
+    cameraTracks.find(t => t.participant?.isLocal) ||
+    cameraTracks.find(t => t.participant?.identity === screenTrack.participant?.identity) ||
+    cameraTracks[0];
+
+  const getPipPositionClass = () => {
+    switch (pipPosition) {
+      case "bottom-left":
+        return "bottom-4 left-4";
+      case "top-right":
+        return "top-4 right-4";
+      default:
+        return "bottom-4 right-4";
+    }
+  };
+
   return (
-    <div className="flex h-full w-full flex-col gap-2.5 p-2 sm:p-4">
-      {/* Top Sharer Notification Banner */}
-      <div className="flex items-center justify-between rounded-xl bg-slate-900/90 border border-slate-800 px-3.5 py-2 text-xs sm:text-sm text-white backdrop-blur-md shrink-0">
-        <div className="flex items-center gap-2">
+    <div className="relative flex h-full w-full flex-col gap-2 p-2 sm:p-4 overflow-hidden select-none">
+      {/* Top Sharer Notification & Layout Control Banner */}
+      <div className="flex items-center justify-between gap-2 rounded-2xl bg-slate-900/95 border border-white/10 px-3.5 py-2 text-xs sm:text-sm text-white backdrop-blur-xl shrink-0 shadow-lg">
+        <div className="flex items-center gap-2 min-w-0">
           <Monitor className="h-4 w-4 text-indigo-400 shrink-0" />
           <span className="truncate">
-            <strong className="text-white">{sharerName}</strong> is sharing their screen
+            <strong className="text-white">{sharerName}</strong> is sharing screen
           </span>
         </div>
-        {isLocalSharing && onStopShare && (
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={onStopShare}
-            className="h-8 text-xs px-3 shrink-0"
-          >
-            <StopCircle className="w-3.5 h-3.5 mr-1" />
-            <span>Stop Sharing</span>
-          </Button>
-        )}
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Layout Mode Toggles */}
+          <div className="flex items-center bg-black/40 rounded-xl p-0.5 border border-white/10">
+            <button
+              type="button"
+              onClick={() => setLayoutMode("pip")}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                layoutMode === "pip"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-400 hover:text-white"
+              }`}
+              title="Picture-in-Picture Camera Overlay"
+            >
+              <PictureInPicture className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Floating PiP</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLayoutMode("filmstrip")}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                layoutMode === "filmstrip"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-400 hover:text-white"
+              }`}
+              title="Bottom Camera Filmstrip"
+            >
+              <Layout className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Filmstrip</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLayoutMode("screenOnly")}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                layoutMode === "screenOnly"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-400 hover:text-white"
+              }`}
+              title="Hide Camera (Full Screen)"
+            >
+              <EyeOff className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Screen Only</span>
+            </button>
+          </div>
+
+          {/* Stop Share button for presenter */}
+          {isLocalSharing && onStopShare && (
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={onStopShare}
+              className="h-7 sm:h-8 text-xs px-2.5 sm:px-3 shrink-0"
+            >
+              <StopCircle className="w-3.5 h-3.5 mr-1" />
+              <span>Stop Share</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main Screen Share Stage */}
-      <div className="relative flex-1 min-h-[40vh] w-full rounded-2xl bg-black border-2 border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center">
+      <div className="relative flex-1 min-h-0 w-full rounded-2xl bg-black border-2 border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center">
         {isRealTrack ? (
           <VideoTrack
             trackRef={screenTrack as TrackReference}
@@ -70,11 +141,43 @@ export function ScreenShareView({
             <p className="text-xs text-slate-500 mt-1">LiveKit WebRTC stream is subscribing</p>
           </div>
         )}
+
+        {/* Floating Presenter Face Camera (Picture-in-Picture Mode) */}
+        {layoutMode === "pip" && pipCameraTrack && (
+          <div
+            className={`absolute ${getPipPositionClass()} z-20 w-36 sm:w-60 md:w-72 aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-indigo-500/70 bg-[#0E1626] backdrop-blur-xl transition-all duration-200 group`}
+          >
+            <ParticipantTile
+              trackRef={pipCameraTrack}
+              isHost={pipCameraTrack.participant?.identity === hostIdentity}
+              className="h-full w-full object-cover"
+            />
+
+            {/* Switch corner position button on hover */}
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                setPipPosition(prev =>
+                  prev === "bottom-right"
+                    ? "bottom-left"
+                    : prev === "bottom-left"
+                    ? "top-right"
+                    : "bottom-right"
+                );
+              }}
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 hover:bg-black/90 text-white rounded-lg px-2 py-1 text-[10px] font-bold backdrop-blur-md cursor-pointer border border-white/20"
+              title="Move Floating Window Position"
+            >
+              Move
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Participant Video Filmstrip at Bottom */}
-      {cameraTracks.length > 0 && (
-        <div className="flex h-24 sm:h-36 w-full gap-2.5 overflow-x-auto pb-1 shrink-0">
+      {/* Participant Video Filmstrip at Bottom (Filmstrip Mode) */}
+      {layoutMode === "filmstrip" && cameraTracks.length > 0 && (
+        <div className="flex h-24 sm:h-32 w-full gap-2.5 overflow-x-auto pb-1 shrink-0 animate-in slide-in-from-bottom duration-150">
           {cameraTracks.map(track => (
             <div key={track.participant?.identity + track.source} className="h-full aspect-video shrink-0 min-w-[120px]">
               <ParticipantTile

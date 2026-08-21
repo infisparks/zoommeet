@@ -21,7 +21,10 @@ import {
   MoreHorizontal,
   RefreshCw,
   X,
+  ChevronUp,
+  Headphones,
 } from "lucide-react";
+import { AudioDeviceMenu } from "./AudioDeviceMenu";
 
 interface MeetingControlsProps {
   isMuted: boolean;
@@ -79,6 +82,7 @@ export function MeetingControls({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLeaveMenu, setShowLeaveMenu] = useState(false);
   const [showMobileMore, setShowMobileMore] = useState(false);
+  const [showAudioDevices, setShowAudioDevices] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -93,28 +97,40 @@ export function MeetingControls({
     <>
       {/* Floating Bottom Control Bar */}
       <div className="fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center pointer-events-auto w-full px-2 sm:px-0 sm:w-auto max-w-[100vw] sm:max-w-[96vw] pb-[env(safe-area-inset-bottom,0px)] select-none">
-        <div className="glass-control-bar flex items-center justify-between sm:justify-center gap-1.5 sm:gap-2.5 rounded-2xl px-2.5 sm:px-5 py-2 text-white w-full sm:w-auto shadow-2xl border border-white/10 backdrop-blur-2xl bg-[#0E1626]/95">
+        <div className="glass-control-bar flex items-center justify-between sm:justify-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-4 py-2 text-white w-full sm:w-auto shadow-2xl border border-white/10 backdrop-blur-2xl bg-[#0E1626]/95">
           
-          {/* 1. Microphone */}
-          <button
-            type="button"
-            onClick={onToggleMic}
-            className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
-              isMuted
-                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
-                : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
-            }`}
-            title={isMuted ? "Unmute Mic" : "Mute Mic"}
-          >
-            {isMuted ? <MicOff className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" /> : <Mic className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-400" />}
-            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isMuted ? "Unmute" : "Mute"}</span>
-          </button>
+          {/* 1. Microphone with Device Selector */}
+          <div className="relative flex items-center shrink-0">
+            <button
+              type="button"
+              onClick={onToggleMic}
+              className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-l-xl sm:rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
+                isMuted
+                  ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
+                  : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
+              }`}
+              title={isMuted ? "Unmute Mic" : "Mute Mic"}
+            >
+              {isMuted ? <MicOff className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" /> : <Mic className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-400" />}
+              <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isMuted ? "Unmute" : "Mute"}</span>
+            </button>
+
+            {/* Audio Settings Chevron (Desktop & Tablet) */}
+            <button
+              type="button"
+              onClick={() => setShowAudioDevices(!showAudioDevices)}
+              className="hidden sm:flex items-center justify-center h-13 px-1.5 rounded-r-xl bg-slate-800/70 hover:bg-slate-700 text-slate-300 transition-colors border-l border-white/10 cursor-pointer -ml-1"
+              title="Select Audio Device (Bluetooth / System)"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           {/* 2. Video Camera */}
           <button
             type="button"
             onClick={onToggleVideo}
-            className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
+            className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
               isVideoMuted
                 ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
                 : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
@@ -129,7 +145,7 @@ export function MeetingControls({
           <button
             type="button"
             onClick={onToggleScreenShare}
-            className={`hidden md:flex flex-col items-center justify-center h-13 w-15 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation ${
+            className={`hidden md:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation ${
               isScreenSharing
                 ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
                 : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
@@ -144,7 +160,7 @@ export function MeetingControls({
           <button
             type="button"
             onClick={onToggleHand}
-            className={`hidden sm:flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation ${
+            className={`hidden sm:flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation ${
               isHandRaised
                 ? "bg-amber-400 text-slate-950 shadow-md font-bold"
                 : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
@@ -160,7 +176,7 @@ export function MeetingControls({
             <button
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation ${
+              className={`flex flex-col items-center justify-center h-12 w-12 sm:h-13 sm:w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation ${
                 showEmojiPicker
                   ? "bg-indigo-600 text-white"
                   : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
@@ -196,7 +212,7 @@ export function MeetingControls({
           <button
             type="button"
             onClick={onToggleChat}
-            className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
+            className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
               isChatOpen
                 ? "bg-indigo-600 text-white shadow-md"
                 : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
@@ -216,7 +232,7 @@ export function MeetingControls({
           <button
             type="button"
             onClick={onToggleParticipants}
-            className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-15 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
+            className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
               isParticipantsOpen
                 ? "bg-indigo-600 text-white shadow-md"
                 : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
@@ -234,7 +250,7 @@ export function MeetingControls({
           <button
             type="button"
             onClick={onToggleViewMode}
-            className="hidden lg:flex flex-col items-center justify-center h-13 w-15 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
+            className="hidden lg:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
             title={isFocusView ? "Grid View" : "Speaker Focus View"}
           >
             {isFocusView ? <LayoutGrid className="h-5 w-5" /> : <Square className="h-5 w-5" />}
@@ -246,7 +262,7 @@ export function MeetingControls({
             <button
               type="button"
               onClick={handleCopy}
-              className="hidden xl:flex flex-col items-center justify-center h-13 w-15 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
+              className="hidden xl:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
               title="Copy Meeting Invite Link"
             >
               {copied ? <Check className="h-5 w-5 text-emerald-400" /> : <Copy className="h-5 w-5" />}
@@ -313,6 +329,12 @@ export function MeetingControls({
         </div>
       </div>
 
+      {/* Audio Device Selector Menu (Bluetooth / System) */}
+      <AudioDeviceMenu
+        isOpen={showAudioDevices}
+        onClose={() => setShowAudioDevices(false)}
+      />
+
       {/* Mobile "More Options" Bottom Action Sheet */}
       {showMobileMore && (
         <div
@@ -357,6 +379,19 @@ export function MeetingControls({
 
             {/* Action Grid */}
             <div className="grid grid-cols-2 gap-2.5 pt-1">
+              {/* Audio Devices (Bluetooth / System) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileMore(false);
+                  setShowAudioDevices(true);
+                }}
+                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 cursor-pointer touch-manipulation active:scale-95 col-span-2 border border-indigo-500/20"
+              >
+                <Headphones className="h-4.5 w-4.5 text-indigo-400" />
+                <span>Audio Devices (Bluetooth / System)</span>
+              </button>
+
               {/* Flip Camera */}
               {onFlipCamera && !isVideoMuted && (
                 <button
