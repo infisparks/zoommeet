@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --background: #F8FAFC;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  
+  /* Primary Purple / Indigo Theme */
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --primary-foreground: #FFFFFF;
+  
+  --secondary: #F1F5F9;
+  --secondary-foreground: #334155;
+  --muted: #F8FAFC;
+  --muted-foreground: #6B7280;
+  --accent: #EEF2FF;
+  --accent-foreground: #4338CA;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #4F46E5;
+  --radius: 0.625rem;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Executive Dark Meeting Canvas */
+  --meeting-canvas: #0F172A;
+  --meeting-surface: #1E293B;
+  --meeting-card: #1E293B;
+  --meeting-border: #334155;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #F8FAFC;
+  color: #111827;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Glass & Card utilities */
+.glass-meeting-panel {
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.glass-control-bar {
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* Active speaker ring */
+@keyframes active-speaker-pulse {
+  0% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.9), 0 0 12px rgba(16, 185, 129, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 1), 0 0 22px rgba(16, 185, 129, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.9), 0 0 12px rgba(16, 185, 129, 0.35);
+  }
+}
+
+.speaking-highlight {
+  animation: active-speaker-pulse 1.8s infinite ease-in-out;
+}
+
+/* Floating emoji */
+@keyframes float-reaction {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-20px) scale(1.1);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(-120px) scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-160px) scale(0.7);
+    opacity: 0;
+  }
+}
+
+.floating-reaction {
+  animation: float-reaction 2.5s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
 }
