@@ -18,6 +18,7 @@ import {
   VideoOff,
   Users,
   Sparkles,
+  Crown,
   Copy,
   Check,
 } from "lucide-react";
@@ -36,6 +37,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
   const [password, setPassword] = useState("");
   const [isVoiceLocked, setIsVoiceLocked] = useState(false);
   const [isVideoLocked, setIsVideoLocked] = useState(false);
+  const [onlyShowHost, setOnlyShowHost] = useState(true);
   const [fakeUserCount, setFakeUserCount] = useState(200);
   const [enableBooster, setEnableBooster] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -63,6 +65,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
         passcode: hasPassword ? password : "",
         isVoiceLocked,
         isVideoLocked,
+        onlyShowHost,
         isWebinar: isVoiceLocked && isVideoLocked,
         fakeUserCount: enableBooster ? fakeUserCount : 0,
       });
@@ -157,6 +160,25 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                   type="checkbox"
                   checked={isVideoLocked}
                   onChange={e => setIsVideoLocked(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Focus Host Only Stage Mode */}
+              <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+                    <Crown className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900">Webinar Stage Mode (Show Only Host)</p>
+                    <p className="text-[11px] text-slate-500">Only Host is shown full screen; attendees watch as audience without filling grid tiles.</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={onlyShowHost}
+                  onChange={e => setOnlyShowHost(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
               </div>

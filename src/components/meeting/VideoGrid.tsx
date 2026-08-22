@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { ParticipantTile } from "./ParticipantTile";
+import { Users } from "lucide-react";
 
 interface VideoGridProps {
   tracks: TrackReferenceOrPlaceholder[];
@@ -11,6 +12,8 @@ interface VideoGridProps {
   raisedHandIdentities?: string[];
   customNames?: Record<string, string>;
   isFocusView?: boolean;
+  onlyShowHost?: boolean;
+  totalAudienceCount?: number;
 }
 
 export function VideoGrid({
@@ -20,6 +23,8 @@ export function VideoGrid({
   raisedHandIdentities = [],
   customNames = {},
   isFocusView = false,
+  onlyShowHost = false,
+  totalAudienceCount = 0,
 }: VideoGridProps) {
   const [pinnedIdentity, setPinnedIdentity] = useState<string | null>(null);
 
@@ -31,17 +36,32 @@ export function VideoGrid({
     );
   }
 
-  // Handle Focus / Pinned View
-  if (isFocusView || pinnedIdentity) {
+  // If onlyShowHost is enabled (Webinar Stage Mode):
+  // Filter stage tracks to Host, Co-Hosts, and any attendee who has video enabled or is speaking
+  const stageTracks = onlyShowHost
+    ? tracks.filter(t => {
+        const isHost = t.participant.identity === hostIdentity;
+        const isCoHost = coHostIdentities.includes(t.participant.identity);
+        const hasActiveVideo = t.publication?.track && !t.publication.isMuted;
+        return isHost || isCoHost || hasActiveVideo;
+      })
+    : tracks;
+
+  // Fallback to all tracks if no stage track matched
+  const activeTracks = stageTracks.length > 0 ? stageTracks : tracks;
+
+  // Handle Focus / Pinned View OR Single Host Stage View
+  if (isFocusView || pinnedIdentity || (onlyShowHost && activeTracks.length === 1)) {
     const focusTrack =
-      tracks.find(t => t.participant.identity === pinnedIdentity) ||
-      tracks[0];
-    const otherTracks = tracks.filter(t => t.participant.identity !== focusTrack.participant.identity);
+      activeTracks.find(t => t.participant.identity === pinnedIdentity) ||
+      activeTracks.find(t => t.participant.identity === hostIdentity) ||
+      activeTracks[0];
+    const otherTracks = activeTracks.filter(t => t.participant.identity !== focusTrack.participant.identity);
 
     return (
-      <div className="flex h-full w-full flex-col gap-3 p-3 sm:p-4">
+      <div className="relative flex h-full w-full flex-col gap-3 p-2 sm:p-4">
         {/* Main Stage */}
-        <div className="flex-1 min-h-0 w-full">
+        <div className="flex-1 min-h-0 w-full relative">
           <ParticipantTile
             trackRef={focusTrack}
             isHost={focusTrack.participant.identity === hostIdentity}
@@ -56,9 +76,17 @@ export function VideoGrid({
             }
             className="h-full w-full"
           />
+
+          {/* Social Proof Floating Audience Badge in Stage Mode */}
+          {totalAudienceCount > 1 && (
+            <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2 rounded-full bg-slate-950/80 px-3.5 py-1.5 border border-white/15 text-xs font-semibold text-slate-200 backdrop-blur-md shadow-lg pointer-events-none">
+              <Users className="w-3.5 h-3.5 text-indigo-400" />
+              <span>+ {totalAudienceCount - 1} others in call</span>
+            </div>
+          )}
         </div>
 
-        {/* Filmstrip at bottom */}
+        {/* Filmstrip at bottom for Co-Hosts/Presenters if present */}
         {otherTracks.length > 0 && (
           <div className="flex h-28 sm:h-36 w-full gap-3 overflow-x-auto pb-1 shrink-0">
             {otherTracks.map(track => (
@@ -81,7 +109,7 @@ export function VideoGrid({
   }
 
   // Adaptive Grid Layout based on count
-  const count = tracks.length;
+  const count = activeTracks.length;
 
   let gridColsClass = "grid-cols-1";
   let gridRowsClass = "grid-rows-1";
@@ -104,8 +132,8 @@ export function VideoGrid({
   }
 
   return (
-    <div className={`grid h-full w-full gap-3 sm:gap-4 p-3 sm:p-4 ${gridColsClass} ${gridRowsClass} auto-rows-fr`}>
-      {tracks.map(track => (
+    <div className={`relative grid h-full w-full gap-3 sm:gap-4 p-2 sm:p-4 ${gridColsClass} ${gridRowsClass} auto-rows-fr`}>
+      {activeTracks.map(track => (
         <div key={track.participant.identity + track.source} className="h-full w-full min-h-0 min-w-0">
           <ParticipantTile
             trackRef={track}
@@ -122,6 +150,14 @@ export function VideoGrid({
           />
         </div>
       ))}
+
+      {/* Social Proof Floating Audience Badge */}
+      {totalAudienceCount > count && (
+        <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2 rounded-full bg-slate-950/80 px-3.5 py-1.5 border border-white/15 text-xs font-semibold text-slate-200 backdrop-blur-md shadow-lg pointer-events-none">
+          <Users className="w-3.5 h-3.5 text-indigo-400" />
+          <span>+ {totalAudienceCount - count} others in call</span>
+        </div>
+      )}
     </div>
   );
 }

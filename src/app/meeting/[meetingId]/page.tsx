@@ -157,6 +157,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
         fakeUserCount={meeting?.fakeUserCount ?? 200}
         isVoiceLocked={meeting?.isVoiceLocked}
         isVideoLocked={meeting?.isVideoLocked}
+        onlyShowHost={meeting?.onlyShowHost ?? true}
         onLeave={handleLeave}
       />
     );

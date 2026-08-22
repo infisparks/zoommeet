@@ -30,6 +30,7 @@ export interface MeetingData {
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;
   isWebinar?: boolean;
+  onlyShowHost?: boolean;
   fakeUserCount?: number;
   createdAt: number;
   scheduledTime?: number;

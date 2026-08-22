@@ -63,6 +63,7 @@ interface MeetingRoomProps {
   fakeUserCount?: number;
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;
+  onlyShowHost?: boolean;
   onLeave: () => void;
 }
 
@@ -75,6 +76,7 @@ function MeetingRoomInner({
   fakeUserCount = 200,
   isVoiceLocked = false,
   isVideoLocked = false,
+  onlyShowHost = true,
   onLeave,
 }: {
   roomName: string;
@@ -85,6 +87,7 @@ function MeetingRoomInner({
   fakeUserCount?: number;
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;
+  onlyShowHost?: boolean;
   onLeave: () => void;
 }) {
   const connectionState = useConnectionState();
@@ -770,6 +773,8 @@ function MeetingRoomInner({
             raisedHandIdentities={raisedHands}
             customNames={customNames}
             isFocusView={isFocusView}
+            onlyShowHost={onlyShowHost}
+            totalAudienceCount={totalConnectedCount}
           />
         )}
       </div>
@@ -918,6 +923,7 @@ export function MeetingRoom({
   fakeUserCount = 200,
   isVoiceLocked = false,
   isVideoLocked = false,
+  onlyShowHost = true,
   onLeave,
 }: MeetingRoomProps) {
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -1018,6 +1024,7 @@ export function MeetingRoom({
         fakeUserCount={fakeUserCount}
         isVoiceLocked={isVoiceLocked}
         isVideoLocked={isVideoLocked}
+        onlyShowHost={onlyShowHost}
         onLeave={onLeave}
       />
     </LiveKitRoom>
