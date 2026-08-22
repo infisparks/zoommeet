@@ -374,19 +374,13 @@ function MeetingRoomInner({
     setPermissionError(null);
     try {
       if (permissionMediaType === "camera" || permissionMediaType === "both") {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing } });
-        stream.getTracks().forEach(t => t.stop());
         await localParticipant?.setCameraEnabled(true, { facingMode: cameraFacing });
       }
       if (permissionMediaType === "microphone" || permissionMediaType === "both") {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-        await localParticipant?.setMicrophoneEnabled(true, { echoCancellation: true, noiseSuppression: true });
+        await localParticipant?.setMicrophoneEnabled(true);
       }
     } catch (e: unknown) {
       console.warn("Manual retry permission notice:", e);
-      setPermissionError("Permission was blocked. Please tap the lock icon (🔒) in your address bar to allow camera/mic.");
-      setShowPermissionModal(true);
     }
   };
 
@@ -401,14 +395,7 @@ function MeetingRoomInner({
     const currentStatus = localParticipant.isMicrophoneEnabled;
     const nextStatus = !currentStatus;
 
-    if (!nextStatus) {
-      // Disabling mic
-      await localParticipant.setMicrophoneEnabled(false).catch(() => {});
-      return;
-    }
-
     try {
-      // Direct user gesture triggers browser's native permission popup
       const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
       const audioOptions = isMobile
         ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
@@ -417,31 +404,23 @@ function MeetingRoomInner({
             ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
           };
 
-      // Ensure native permission prompt is raised if not already granted
+      await localParticipant.setMicrophoneEnabled(nextStatus, audioOptions);
+    } catch (err: unknown) {
+      console.warn("Microphone toggle notice, retrying fallback:", err);
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-      } catch (err: unknown) {
-        const error = err as Error;
-        console.warn("Microphone getUserMedia prompt failed:", error);
-        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError" || error.message?.toLowerCase().includes("denied")) {
+        await localParticipant.setMicrophoneEnabled(nextStatus);
+      } catch (fallbackErr: unknown) {
+        const error = fallbackErr as Error;
+        console.warn("Microphone fallback notice:", error);
+        if (
+          error.name === "NotAllowedError" ||
+          error.name === "PermissionDeniedError" ||
+          (error.message?.toLowerCase().includes("permission") && !error.message?.toLowerCase().includes("livekit"))
+        ) {
           setPermissionMediaType("microphone");
           setPermissionError("Microphone access was denied. Please allow microphone in browser settings.");
           setShowPermissionModal(true);
-          return;
         }
-      }
-
-      await localParticipant.setMicrophoneEnabled(true, audioOptions);
-    } catch (err: unknown) {
-      console.warn("Microphone toggle fallback:", err);
-      try {
-        await localParticipant.setMicrophoneEnabled(true);
-      } catch (fallbackErr: unknown) {
-        const error = fallbackErr as Error;
-        setPermissionMediaType("microphone");
-        setPermissionError("Microphone access is blocked by browser permissions.");
-        setShowPermissionModal(true);
       }
     }
   };
@@ -457,38 +436,25 @@ function MeetingRoomInner({
     const currentStatus = localParticipant.isCameraEnabled;
     const nextStatus = !currentStatus;
 
-    if (!nextStatus) {
-      // Disabling camera
-      await localParticipant.setCameraEnabled(false).catch(() => {});
-      return;
-    }
-
     try {
-      // Direct user gesture triggers browser's native permission popup
+      await localParticipant.setCameraEnabled(nextStatus, { facingMode: cameraFacing });
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.warn("Camera toggle notice, retrying fallback:", error);
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing } });
-        stream.getTracks().forEach(t => t.stop());
-      } catch (err: unknown) {
-        const error = err as Error;
-        console.warn("Camera getUserMedia prompt failed:", error);
-        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError" || error.message?.toLowerCase().includes("denied")) {
+        await localParticipant.setCameraEnabled(nextStatus);
+      } catch (fallbackErr: unknown) {
+        const fbError = fallbackErr as Error;
+        console.warn("Camera fallback notice:", fbError);
+        if (
+          fbError.name === "NotAllowedError" ||
+          fbError.name === "PermissionDeniedError" ||
+          (fbError.message?.toLowerCase().includes("permission") && !fbError.message?.toLowerCase().includes("livekit"))
+        ) {
           setPermissionMediaType("camera");
           setPermissionError("Camera access was denied. Please allow camera in browser settings.");
           setShowPermissionModal(true);
-          return;
         }
-      }
-
-      await localParticipant.setCameraEnabled(true, { facingMode: cameraFacing });
-    } catch (err: unknown) {
-      console.warn("Camera toggle fallback:", err);
-      try {
-        await localParticipant.setCameraEnabled(true);
-      } catch (fallbackErr: unknown) {
-        const error = fallbackErr as Error;
-        setPermissionMediaType("camera");
-        setPermissionError("Camera access is blocked by browser permissions.");
-        setShowPermissionModal(true);
       }
     }
   };
