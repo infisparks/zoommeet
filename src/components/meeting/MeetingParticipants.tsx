@@ -129,16 +129,6 @@ export function MeetingParticipants({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {isCurrentUserHost && onOpenBoosterConfig && (
-            <button
-              type="button"
-              onClick={onOpenBoosterConfig}
-              className="rounded-xl p-2 text-amber-400 hover:bg-white/10 hover:text-amber-300 transition-colors cursor-pointer"
-              title="Webinar Booster Settings"
-            >
-              <Sparkles className="h-4.5 w-4.5" />
-            </button>
-          )}
           <button
             type="button"
             onClick={onClose}
