@@ -30,13 +30,25 @@ export function ScreenShareView({
 }: ScreenShareViewProps) {
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("screenOnly");
   const [pipPosition, setPipPosition] = useState<"bottom-right" | "bottom-left" | "top-right">("bottom-right");
+  const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const sharerName =
     screenTrack?.participant?.name ||
     screenTrack?.participant?.identity ||
     "A participant";
 
-  const isRealTrack = isTrackReference(screenTrack) && screenTrack?.publication?.track;
+  const track = screenTrack?.publication?.track;
+  const isRealTrack = Boolean(track);
+
+  React.useEffect(() => {
+    const el = videoRef.current;
+    if (el && track) {
+      track.attach(el);
+      return () => {
+        track.detach(el);
+      };
+    }
+  }, [track]);
 
   // Find the primary camera track (local user or active speaker/sharer)
   const pipCameraTrack =
@@ -129,14 +141,14 @@ export function ScreenShareView({
 
       {/* Main Screen Share Stage */}
       <div className="relative flex-1 min-h-0 w-full rounded-2xl bg-black border-2 border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center">
-        {isTrackReference(screenTrack) ? (
-          <VideoTrack
-            trackRef={screenTrack as TrackReference}
-            className="h-full w-full object-contain"
-            autoPlay
-            playsInline
-          />
-        ) : (
+        <video
+          ref={videoRef}
+          className={`h-full w-full object-contain ${isRealTrack ? "block" : "hidden"}`}
+          autoPlay
+          playsInline
+        />
+
+        {!isRealTrack && (
           <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
             <Monitor className="w-10 h-10 text-indigo-400 mb-2 animate-pulse" />
             <p className="text-sm font-semibold text-slate-200">Connecting to {sharerName}&apos;s screen stream...</p>

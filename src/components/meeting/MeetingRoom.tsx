@@ -274,23 +274,9 @@ function MeetingRoomInner({
       // 2. Initial Camera publish (after PreJoin hardware release)
       if (initialVideo && !localParticipant.isCameraEnabled && (!videoLocked || isHost)) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: cameraFacing,
-              width: { ideal: 640 },
-              height: { ideal: 480 },
-            },
-          });
-          const [mediaTrack] = stream.getVideoTracks();
-          if (mediaTrack) {
-            const localVideoTrack = new LocalVideoTrack(mediaTrack);
-            await localParticipant.publishTrack(localVideoTrack);
-          } else {
-            await localParticipant.setCameraEnabled(true);
-          }
+          await localParticipant.setCameraEnabled(true, { facingMode: cameraFacing });
         } catch (e) {
-          console.warn("Initial direct hardware camera notice, trying standard fallback:", e);
-          localParticipant.setCameraEnabled(true).catch(() => {});
+          console.warn("Initial camera publish notice:", e);
         }
       }
     }, 350);
@@ -518,7 +504,6 @@ function MeetingRoomInner({
       } else {
         await localParticipant.setCameraEnabled(true, {
           facingMode: cameraFacing,
-          resolution: { width: 640, height: 480, frameRate: 24 },
         });
         api.logDiagnostic(roomName, {
           action: "camera_enabled_success",

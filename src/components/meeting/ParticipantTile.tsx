@@ -47,14 +47,22 @@ export function ParticipantTile({
     .split(" ")
     .filter(Boolean)
     .map(p => p[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase() || "A";
-
+  const videoRef = React.useRef<HTMLVideoElement>(null);
   const isRealTrack = isTrackReference(trackRef);
   const track = trackRef.publication?.track;
+  const isLocal = Boolean(trackRef?.participant?.isLocal);
   const isMuted = Boolean(trackRef.publication?.isMuted || !trackRef.participant?.isCameraEnabled);
   const hasLiveVideo = Boolean(isRealTrack && track && !isMuted);
+
+  React.useEffect(() => {
+    const el = videoRef.current;
+    if (el && track) {
+      track.attach(el);
+      return () => {
+        track.detach(el);
+      };
+    }
+  }, [track, hasLiveVideo]);
 
   return (
     <div
@@ -65,17 +73,17 @@ export function ParticipantTile({
       } ${className}`}
     >
       {/* Real Video Track or Avatar Fallback */}
-      {hasLiveVideo ? (
-        <div className={`h-full w-full ${trackRef?.participant?.isLocal ? "scale-x-[-1]" : ""}`}>
-          <VideoTrack
-            trackRef={trackRef as TrackReference}
-            className="h-full w-full object-cover"
-            autoPlay
-            playsInline
-            muted={trackRef?.participant?.isLocal}
-          />
-        </div>
-      ) : (
+      <div className={`h-full w-full flex items-center justify-center ${hasLiveVideo ? "block" : "hidden"}`}>
+        <video
+          ref={videoRef}
+          className={`h-full w-full object-cover ${isLocal ? "scale-x-[-1]" : ""}`}
+          autoPlay
+          playsInline
+          muted={isLocal}
+        />
+      </div>
+
+      {!hasLiveVideo && (
         <div className="flex flex-col items-center justify-center text-center p-4">
           <div className="flex h-20 w-20 sm:h-26 sm:w-26 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white text-2xl sm:text-4xl font-bold shadow-2xl border-2 border-white/20 select-none tracking-tight">
             {initials}
