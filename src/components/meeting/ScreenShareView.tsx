@@ -8,7 +8,7 @@ import {
   isTrackReference,
 } from "@livekit/components-react";
 import { ParticipantTile } from "./ParticipantTile";
-import { Monitor, StopCircle, Layout, PictureInPicture, EyeOff } from "lucide-react";
+import { Monitor, StopCircle, Layout, PictureInPicture, EyeOff, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface ScreenShareViewProps {
@@ -16,6 +16,7 @@ interface ScreenShareViewProps {
   cameraTracks: TrackReferenceOrPlaceholder[];
   hostIdentity?: string;
   isLocalSharing?: boolean;
+  totalAudienceCount?: number;
   onStopShare?: () => void;
 }
 
@@ -26,9 +27,10 @@ export function ScreenShareView({
   cameraTracks,
   hostIdentity,
   isLocalSharing = false,
+  totalAudienceCount = 1,
   onStopShare,
 }: ScreenShareViewProps) {
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("screenOnly");
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("pip");
   const [pipPosition, setPipPosition] = useState<"bottom-right" | "bottom-left" | "top-right">("bottom-right");
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
@@ -50,10 +52,11 @@ export function ScreenShareView({
     }
   }, [track]);
 
-  // Find the primary camera track (local user or active speaker/sharer)
+  // Find ONLY the presenter who is sharing their screen
+  const sharerIdentity = screenTrack?.participant?.identity;
   const pipCameraTrack =
+    cameraTracks.find(t => t.participant?.identity === sharerIdentity) ||
     cameraTracks.find(t => t.participant?.isLocal) ||
-    cameraTracks.find(t => t.participant?.identity === screenTrack.participant?.identity) ||
     cameraTracks[0];
 
   const getPipPositionClass = () => {
@@ -68,14 +71,22 @@ export function ScreenShareView({
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col gap-2 p-2 sm:p-4 overflow-hidden select-none">
+    <div className="relative flex h-full w-full flex-col gap-2 p-2 sm:p-4 overflow-hidden select-none font-[Poppins,sans-serif]">
       {/* Top Sharer Notification & Layout Control Banner */}
       <div className="flex items-center justify-between gap-2 rounded-2xl bg-slate-900/95 border border-white/10 px-3.5 py-2 text-xs sm:text-sm text-white backdrop-blur-xl shrink-0 shadow-lg">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           <Monitor className="h-4 w-4 text-indigo-400 shrink-0" />
           <span className="truncate">
             <strong className="text-white">{sharerName}</strong> is sharing screen
           </span>
+
+          {/* +n others badge */}
+          {totalAudienceCount > 1 && (
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 px-2.5 py-0.5 text-[11px] font-bold text-indigo-200">
+              <Users className="w-3 h-3 text-indigo-300" />
+              <span>+{totalAudienceCount - 1} in call</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">

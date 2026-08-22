@@ -915,6 +915,7 @@ function MeetingRoomInner({
             cameraTracks={allParticipantTiles}
             hostIdentity={actualHostIdentity}
             isLocalSharing={isLocalScreenSharing}
+            totalAudienceCount={totalConnectedCount}
             onStopShare={handleToggleScreenShare}
           />
         ) : (
