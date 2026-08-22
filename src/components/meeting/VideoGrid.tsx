@@ -37,13 +37,13 @@ export function VideoGrid({
   }
 
   // If onlyShowHost is enabled (Webinar Stage Mode):
-  // Filter stage tracks to Host, Co-Hosts, and any attendee who has video enabled or is speaking
+  // Filter stage tracks to Host, Co-Hosts, and the local attendee ("You") only
   const stageTracks = onlyShowHost
     ? tracks.filter(t => {
         const isHost = t.participant.identity === hostIdentity;
         const isCoHost = coHostIdentities.includes(t.participant.identity);
-        const hasActiveVideo = t.publication?.track && !t.publication.isMuted;
-        return isHost || isCoHost || hasActiveVideo;
+        const isLocal = t.participant.isLocal;
+        return isHost || isCoHost || isLocal;
       })
     : tracks;
 

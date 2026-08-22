@@ -232,33 +232,29 @@ function MeetingRoomInner({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Attempt initial audio/video publishing
+  // Attempt initial audio/video publishing once fully connected
   useEffect(() => {
     if (!localParticipant || connectionState !== ConnectionState.Connected) return;
     if (publishedInitialRef.current) return;
     publishedInitialRef.current = true;
 
-    const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+    const timer = setTimeout(() => {
+      // If voice is locked and user is not host, do not enable mic
+      if (initialAudio && !localParticipant.isMicrophoneEnabled && (!voiceLocked || isHost)) {
+        localParticipant.setMicrophoneEnabled(true, ZOOM_HD_AUDIO_OPTIONS).catch(e => {
+          console.warn("Mic init notice:", e);
+        });
+      }
 
-    // If voice is locked and user is not host, do not enable mic
-    if (initialAudio && !localParticipant.isMicrophoneEnabled && (!voiceLocked || isHost)) {
-      const audioOptions = isMobile
-        ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        : {
-            ...ZOOM_HD_AUDIO_OPTIONS,
-            ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
-          };
-      localParticipant.setMicrophoneEnabled(true, audioOptions).catch(() => {
-        localParticipant.setMicrophoneEnabled(true).catch(e => console.warn("Mic fallback init:", e));
-      });
-    }
+      // If video is locked and user is not host, do not enable video
+      if (initialVideo && !localParticipant.isCameraEnabled && (!videoLocked || isHost)) {
+        localParticipant.setCameraEnabled(true, { facingMode: cameraFacing }).catch(e => {
+          console.warn("Camera init notice:", e);
+        });
+      }
+    }, 150);
 
-    // If video is locked and user is not host, do not enable video
-    if (initialVideo && !localParticipant.isCameraEnabled && (!videoLocked || isHost)) {
-      localParticipant.setCameraEnabled(true, { facingMode: cameraFacing }).catch(() => {
-        localParticipant.setCameraEnabled(true).catch(e => console.warn("Camera fallback init:", e));
-      });
-    }
+    return () => clearTimeout(timer);
   }, [localParticipant, connectionState, initialAudio, initialVideo, cameraFacing, voiceLocked, videoLocked, isHost]);
 
   // Load initial chat history
@@ -399,15 +395,7 @@ function MeetingRoomInner({
     const nextStatus = !currentStatus;
 
     try {
-      const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
-      const audioOptions = isMobile
-        ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        : {
-            ...ZOOM_HD_AUDIO_OPTIONS,
-            ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
-          };
-
-      await localParticipant.setMicrophoneEnabled(nextStatus, audioOptions);
+      await localParticipant.setMicrophoneEnabled(nextStatus, ZOOM_HD_AUDIO_OPTIONS);
     } catch (err: unknown) {
       console.warn("Microphone toggle notice, retrying fallback:", err);
       try {
