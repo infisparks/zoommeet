@@ -118,8 +118,16 @@ function MeetingRoomInner({
   );
   const [voiceLocked, setVoiceLocked] = useState(!!isVoiceLocked);
   const [videoLocked, setVideoLocked] = useState(!!isVideoLocked);
+  const [onlyShowHostState, setOnlyShowHostState] = useState(onlyShowHost ?? true);
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   const [tempBoosterCount, setTempBoosterCount] = useState(fakeUserCount || 200);
+
+  // Host Admin Controls Modal State
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminVoiceLock, setAdminVoiceLock] = useState(!!isVoiceLocked);
+  const [adminVideoLock, setAdminVideoLock] = useState(!!isVideoLocked);
+  const [adminOnlyShowHost, setAdminOnlyShowHost] = useState(onlyShowHost ?? true);
+  const [adminBoosterCount, setAdminBoosterCount] = useState(fakeUserCount || 200);
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -336,6 +344,26 @@ function MeetingRoomInner({
         if (!isHost && localParticipant) {
           localParticipant.setCameraEnabled(false).catch(() => {});
         }
+      } else if (data.type === "room_settings_update") {
+        if (typeof data.voiceLocked === "boolean") {
+          setVoiceLocked(data.voiceLocked);
+          if (data.voiceLocked && !isHost && !coHosts.includes(localParticipant?.identity || "")) {
+            localParticipant?.setMicrophoneEnabled(false).catch(() => {});
+          }
+        }
+        if (typeof data.videoLocked === "boolean") {
+          setVideoLocked(data.videoLocked);
+          if (data.videoLocked && !isHost && !coHosts.includes(localParticipant?.identity || "")) {
+            localParticipant?.setCameraEnabled(false).catch(() => {});
+          }
+        }
+        if (typeof data.onlyShowHost === "boolean") {
+          setOnlyShowHostState(data.onlyShowHost);
+        }
+        if (typeof data.fuserCount === "number") {
+          setFuserCount(data.fuserCount);
+          setFakeUsers(generateFUsers(data.fuserCount, roomName));
+        }
       } else if (data.type === "booster_update") {
         if (data.count && typeof data.count === "number") {
           setFuserCount(data.count);
@@ -501,23 +529,29 @@ function MeetingRoomInner({
         await localParticipant.setScreenShareEnabled(false);
       } else {
         const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
-        await localParticipant.setScreenShareEnabled(true, isMobile ? {
-          audio: false,
-          resolution: { width: 1280, height: 720, frameRate: 20 },
-        } : {
-          audio: true,
-          selfBrowserSurface: "include",
-          surfaceSwitching: "include",
-          systemAudio: "include",
-          resolution: { width: 1920, height: 1080, frameRate: 30 },
-          contentHint: "motion",
-        });
+        if (isMobile) {
+          await localParticipant.setScreenShareEnabled(true, { audio: false });
+        } else {
+          await localParticipant.setScreenShareEnabled(true, {
+            audio: true,
+            selfBrowserSurface: "include",
+            surfaceSwitching: "include",
+            systemAudio: "include",
+          });
+        }
       }
     } catch (e: unknown) {
       const err = e as Error;
-      console.warn("Screen share notice:", err?.message || err);
-      if (err.name !== "AbortError" && !err.message?.includes("Permission denied")) {
-        alert("Screen sharing notice: " + (err.message || "Please check your browser permissions"));
+      console.warn("Screen share notice, attempting fallback:", err?.message || err);
+      if (err.name !== "AbortError" && !err.message?.includes("Permission denied") && !err.message?.includes("cancelled")) {
+        try {
+          await localParticipant.setScreenShareEnabled(true);
+        } catch (fallbackErr: unknown) {
+          const fbErr = fallbackErr as Error;
+          if (fbErr.name !== "AbortError" && !fbErr.message?.includes("Permission denied")) {
+            alert("Screen sharing notice: " + (fbErr.message || "Please check your browser permissions"));
+          }
+        }
       }
     }
   };
@@ -634,6 +668,61 @@ function MeetingRoomInner({
     send(new TextEncoder().encode(payload), { reliable: true });
   };
 
+  const handleOpenAdminModal = () => {
+    setAdminVoiceLock(voiceLocked);
+    setAdminVideoLock(videoLocked);
+    setAdminOnlyShowHost(onlyShowHostState);
+    setAdminBoosterCount(fuserCount);
+    setShowAdminModal(true);
+  };
+
+  const handleSaveAdminSettings = async () => {
+    setVoiceLocked(adminVoiceLock);
+    setVideoLocked(adminVideoLock);
+    setOnlyShowHostState(adminOnlyShowHost);
+    setFuserCount(adminBoosterCount);
+    setFakeUsers(generateFUsers(adminBoosterCount, roomName));
+    setShowAdminModal(false);
+
+    // If voice locked, mute non-host local participant
+    if (adminVoiceLock && !isHost && !coHosts.includes(localParticipant?.identity || "")) {
+      localParticipant?.setMicrophoneEnabled(false).catch(() => {});
+    }
+    // If video locked, turn off camera for non-host local participant
+    if (adminVideoLock && !isHost && !coHosts.includes(localParticipant?.identity || "")) {
+      localParticipant?.setCameraEnabled(false).catch(() => {});
+    }
+
+    const payload = JSON.stringify({
+      type: "room_settings_update",
+      voiceLocked: adminVoiceLock,
+      videoLocked: adminVideoLock,
+      onlyShowHost: adminOnlyShowHost,
+      fuserCount: adminBoosterCount,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+
+    // Sync to backend Firebase RTDB
+    try {
+      await api.updateMeetingLocks(roomName, {
+        isVoiceLocked: adminVoiceLock,
+        isVideoLocked: adminVideoLock,
+        onlyShowHost: adminOnlyShowHost,
+        fakeUserCount: adminBoosterCount,
+      });
+    } catch (e) {
+      console.warn("Meeting locks backend sync notice:", e);
+    }
+  };
+
+  const handleForceMuteAll = () => {
+    setVoiceLocked(true);
+    setAdminVoiceLock(true);
+    const payload = JSON.stringify({ type: "force_mute_all" });
+    send(new TextEncoder().encode(payload), { reliable: true });
+    alert("🔇 All attendees have been muted.");
+  };
+
   const handleRenameSelf = (newName: string) => {
     if (!localParticipant || !newName.trim()) return;
     const clean = newName.trim();
@@ -715,6 +804,19 @@ function MeetingRoomInner({
 
         {/* Right Actions: Quick Share, Booster & Fullscreen */}
         <div className="flex items-center gap-1.5 pointer-events-auto">
+          {/* Host Admin Controls */}
+          {isHost && (
+            <button
+              type="button"
+              onClick={handleOpenAdminModal}
+              className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-600/40 to-indigo-600/40 hover:from-purple-600/60 hover:to-indigo-600/60 border border-purple-400/40 px-3 py-1.5 text-xs font-bold text-purple-200 backdrop-blur-md transition active:scale-95 cursor-pointer shadow-lg"
+              title="Host Webinar & Moderation Controls"
+            >
+              <Settings className="h-3.5 w-3.5 text-purple-300 animate-spin-slow" />
+              <span className="hidden sm:inline text-[11px]">Host Controls</span>
+            </button>
+          )}
+
           {isHost && (
             <button
               type="button"
@@ -794,7 +896,7 @@ function MeetingRoomInner({
             raisedHandIdentities={raisedHands}
             customNames={customNames}
             isFocusView={isFocusView}
-            onlyShowHost={onlyShowHost}
+            onlyShowHost={onlyShowHostState}
             totalAudienceCount={totalConnectedCount}
           />
         )}
@@ -916,6 +1018,139 @@ function MeetingRoomInner({
               <Button variant="primary" size="sm" onClick={handleApplyBooster} className="bg-indigo-600 hover:bg-indigo-700">
                 Apply Social Proof
               </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ⚙️ Host Live Webinar & Room Controls Modal */}
+      {isHost && (
+        <Modal
+          isOpen={showAdminModal}
+          onClose={() => setShowAdminModal(false)}
+          title="Host & Webinar Live Controls"
+          description="Update voice lock, video lock, stage mode, and audience booster in real-time."
+          maxWidth="lg"
+        >
+          <div className="space-y-3.5 pt-1 font-[Poppins,sans-serif]">
+            {/* 1. Voice Lock (Mute Attendees) */}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100 shrink-0">
+                  <MicOff className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900">Voice Lock (Mute Attendees)</p>
+                  <p className="text-[11px] text-slate-500">Only host & co-hosts can speak. Attendees cannot unmute.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={adminVoiceLock}
+                onChange={e => setAdminVoiceLock(e.target.checked)}
+                className="h-4.5 w-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {/* 2. Video Lock (Disable Cameras) */}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 shrink-0">
+                  <VideoOff className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900">Video Lock (Disable Cameras)</p>
+                  <p className="text-[11px] text-slate-500">Attendees cannot broadcast video. Preserves bandwidth.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={adminVideoLock}
+                onChange={e => setAdminVideoLock(e.target.checked)}
+                className="h-4.5 w-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {/* 3. Webinar Stage Mode (Show Only Host) */}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100 shrink-0">
+                  <Crown className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900">Webinar Stage Mode (Show Only Host)</p>
+                  <p className="text-[11px] text-slate-500">Only Host is shown full screen; attendees watch as audience without filling grid tiles.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={adminOnlyShowHost}
+                onChange={e => setAdminOnlyShowHost(e.target.checked)}
+                className="h-4.5 w-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {/* 4. Live Social Proof Booster */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-bold text-slate-900">Audience Booster (Simulated Attendees)</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-indigo-600">+{adminBoosterCount} in room</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  value={adminBoosterCount}
+                  onChange={e => setAdminBoosterCount(parseInt(e.target.value, 10) || 0)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-600"
+                />
+                <div className="flex gap-1.5 shrink-0">
+                  {[50, 100, 200, 500].map(cnt => (
+                    <button
+                      key={cnt}
+                      type="button"
+                      onClick={() => setAdminBoosterCount(cnt)}
+                      className={`rounded-lg px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors ${
+                        adminBoosterCount === cnt
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      +{cnt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Action: Force Mute All */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 border-t border-slate-200 pt-3">
+              <button
+                type="button"
+                onClick={handleForceMuteAll}
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition active:scale-95 cursor-pointer"
+              >
+                <VolumeX className="w-4 h-4 text-rose-600" />
+                <span>Mute All Attendees Now</span>
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button variant="outline" size="sm" onClick={() => setShowAdminModal(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleSaveAdminSettings}
+                  className="bg-indigo-600 hover:bg-indigo-700 font-bold"
+                >
+                  Save & Broadcast Live
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>
