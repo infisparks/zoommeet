@@ -472,11 +472,21 @@ function MeetingRoomInner({
 
   const handleToggleScreenShare = async () => {
     if (!localParticipant) return;
+    const isCoHost = coHosts.includes(localParticipant.identity);
+    if (videoLocked && !isHost && !isCoHost) {
+      alert("📹 Screen sharing is locked by the host for this webinar.");
+      return;
+    }
+
     try {
       if (localParticipant.isScreenShareEnabled) {
         await localParticipant.setScreenShareEnabled(false);
       } else {
-        await localParticipant.setScreenShareEnabled(true, {
+        const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+        await localParticipant.setScreenShareEnabled(true, isMobile ? {
+          audio: false,
+          resolution: { width: 1280, height: 720, frameRate: 20 },
+        } : {
           audio: true,
           selfBrowserSurface: "include",
           surfaceSwitching: "include",
@@ -488,6 +498,9 @@ function MeetingRoomInner({
     } catch (e: unknown) {
       const err = e as Error;
       console.warn("Screen share notice:", err?.message || err);
+      if (err.name !== "AbortError" && !err.message?.includes("Permission denied")) {
+        alert("Screen sharing notice: " + (err.message || "Please check your browser permissions"));
+      }
     }
   };
 

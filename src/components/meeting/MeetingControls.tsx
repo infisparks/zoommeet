@@ -421,6 +421,25 @@ export function MeetingControls({
                 <span>Audio Devices (Bluetooth / System)</span>
               </button>
 
+              {/* Share Screen on Mobile */}
+              {onToggleScreenShare && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleScreenShare();
+                    setShowMobileMore(false);
+                  }}
+                  className={`flex items-center gap-2.5 rounded-xl p-3 text-xs font-semibold cursor-pointer touch-manipulation active:scale-95 col-span-2 border ${
+                    isScreenSharing
+                      ? "bg-emerald-600/30 border-emerald-500/40 text-emerald-200"
+                      : "bg-white/5 border-white/10 text-slate-200 hover:bg-white/10"
+                  }`}
+                >
+                  <ScreenShare className="h-4.5 w-4.5 text-emerald-400" />
+                  <span>{isScreenSharing ? "Stop Sharing Screen" : "Share Screen"}</span>
+                </button>
+              )}
+
               {/* Flip Camera */}
               {onFlipCamera && !isVideoMuted && (
                 <button

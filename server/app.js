@@ -169,13 +169,10 @@ app.post("/api/livekit/token", async (req, res) => {
       ttl: "6h",
     });
 
-    const isMeetingVoiceLocked = meeting?.isVoiceLocked && !isHost;
-    const isMeetingVideoLocked = meeting?.isVideoLocked && !isHost;
-
     at.addGrant({
       roomJoin: true,
       room: roomName,
-      canPublish: !isMeetingVoiceLocked || !isMeetingVideoLocked || isHost,
+      canPublish: true,
       canPublishData: true,
       canSubscribe: true,
       roomAdmin: !!isHost,
