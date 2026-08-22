@@ -130,6 +130,8 @@ function MeetingRoomInner({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const publishedInitialRef = useRef(false);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const krispProcessorRef = useRef<any>(null);
 
   // Auto-hide controls after 3.5 seconds of inactivity
   const resetControlsTimeout = useCallback(() => {
@@ -197,6 +199,21 @@ function MeetingRoomInner({
       console.warn("Fullscreen toggle notice:", err);
     }
   };
+
+  // Initialize Krisp AI Deep-Learning Noise Filter
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    import("@livekit/krisp-noise-filter")
+      .then(({ isKrispNoiseFilterSupported, KrispNoiseFilter }) => {
+        if (isKrispNoiseFilterSupported()) {
+          const processor = KrispNoiseFilter();
+          krispProcessorRef.current = processor;
+        }
+      })
+      .catch(err => {
+        console.warn("Krisp AI noise filter load notice:", err);
+      });
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -626,6 +643,12 @@ function MeetingRoomInner({
 
   const totalConnectedCount = participants.length + fakeUsers.length;
 
+  const actualHostIdentity = isHost
+    ? localParticipant?.identity
+    : (participants.find(p => !p.isLocal && (p.identity.startsWith("usr_") || p.name?.toLowerCase().includes("admin") || p.name?.toLowerCase().includes("host")))?.identity
+      || participants.find(p => !p.isLocal)?.identity
+      || localParticipant?.identity);
+
   return (
     <div className="relative flex h-[100dvh] w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif]">
       {/* Audio Renderer for remote audio tracks */}
@@ -732,14 +755,14 @@ function MeetingRoomInner({
           <ScreenShareView
             screenTrack={screenShareTrack}
             cameraTracks={allParticipantTiles}
-            hostIdentity={isHost ? localParticipant?.identity : undefined}
+            hostIdentity={actualHostIdentity}
             isLocalSharing={isLocalScreenSharing}
             onStopShare={handleToggleScreenShare}
           />
         ) : (
           <VideoGrid
             tracks={allParticipantTiles}
-            hostIdentity={isHost ? localParticipant?.identity : undefined}
+            hostIdentity={actualHostIdentity}
             coHostIdentities={coHosts}
             raisedHandIdentities={raisedHands}
             customNames={customNames}
@@ -940,8 +963,8 @@ export function MeetingRoom({
       serverUrl={serverUrl}
       token={token}
       connect={true}
-      audio={false}
-      video={false}
+      audio={initialAudio && (!isVoiceLocked || isHost)}
+      video={initialVideo && (!isVideoLocked || isHost)}
       options={{
         publishDefaults: {
           audioPreset: { maxBitrate: 64000 },
