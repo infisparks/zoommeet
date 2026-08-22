@@ -1,0 +1,14 @@
+{
+  "name": "zoomeet-backend",
+  "version": "1.0.0",
+  "description": "Backend API Server for Zoomeet on meets.infiplus.in",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "livekit-server-sdk": "^2.18.0"
+  }
+}
