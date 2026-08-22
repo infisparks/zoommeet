@@ -13,7 +13,7 @@ import {
   isTrackReference,
   TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { Track, ConnectionState, VideoPresets, ScreenSharePresets } from "livekit-client";
+import { Track, ConnectionState, VideoPresets, ScreenSharePresets, createLocalVideoTrack } from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
 import { ScreenShareView } from "./ScreenShareView";
 import { MeetingControls } from "./MeetingControls";
@@ -253,11 +253,15 @@ function MeetingRoomInner({
         try {
           await localParticipant.setCameraEnabled(true);
         } catch (e) {
-          console.warn("Camera init retry fallback:", e);
+          console.warn("Initial camera publish notice, attempting direct track fallback:", e);
           try {
-            await localParticipant.setCameraEnabled(true);
+            const videoTrack = await createLocalVideoTrack({
+              facingMode: cameraFacing,
+              resolution: { width: 640, height: 480, frameRate: 24 },
+            });
+            await localParticipant.publishTrack(videoTrack);
           } catch (retryErr) {
-            console.error("Camera init failed:", retryErr);
+            console.error("Initial camera fallback failed:", retryErr);
           }
         }
       }
@@ -436,12 +440,22 @@ function MeetingRoomInner({
     const currentStatus = localParticipant.isCameraEnabled;
     const nextStatus = !currentStatus;
 
+    if (!nextStatus) {
+      // Turn off camera
+      await localParticipant.setCameraEnabled(false).catch(() => {});
+      return;
+    }
+
     try {
-      await localParticipant.setCameraEnabled(nextStatus);
+      await localParticipant.setCameraEnabled(true);
     } catch (err: unknown) {
-      console.warn("Camera toggle notice, retrying fallback:", err);
+      console.warn("Standard camera enable notice, attempting direct track fallback:", err);
       try {
-        await localParticipant.setCameraEnabled(nextStatus);
+        const videoTrack = await createLocalVideoTrack({
+          facingMode: cameraFacing,
+          resolution: { width: 640, height: 480, frameRate: 24 },
+        });
+        await localParticipant.publishTrack(videoTrack);
       } catch (fallbackErr: unknown) {
         const fbError = fallbackErr as Error;
         console.warn("Camera fallback notice:", fbError);

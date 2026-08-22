@@ -162,8 +162,15 @@ export function PreJoin({
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current.getTracks().forEach(t => {
+          t.stop();
+          t.enabled = false;
+        });
+        streamRef.current = null;
       }
     };
   }, [selectedAudioInput, selectedVideoInput]);
@@ -201,8 +208,15 @@ export function PreJoin({
       sessionStorage.setItem("infiplus_guest_name", cleanName);
     }
 
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current.getTracks().forEach(t => {
+        t.stop();
+        t.enabled = false;
+      });
+      streamRef.current = null;
     }
 
     onJoin({
