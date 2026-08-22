@@ -137,9 +137,9 @@ export const api = {
   },
 
   /**
-   * Update Live Meeting Locks (Host Moderation)
+   * Update Live Meeting Locks & Settings (Host Moderation)
    */
-  async updateMeetingLocks(meetingId: string, updates: { isVoiceLocked?: boolean; isVideoLocked?: boolean; fakeUserCount?: number }) {
+  async updateMeetingLocks(meetingId: string, updates: { isVoiceLocked?: boolean; isVideoLocked?: boolean; onlyShowHost?: boolean; fakeUserCount?: number }) {
     try {
       const res = await fetch(`${BACKEND_URL}/api/meetings/${meetingId}/lock`, {
         method: "POST",

@@ -320,11 +320,12 @@ app.post("/api/meetings/:id/fusers", async (req, res) => {
 app.post("/api/meetings/:id/lock", async (req, res) => {
   try {
     const { id } = req.params;
-    const { isVoiceLocked, isVideoLocked, fakeUserCount } = req.body;
+    const { isVoiceLocked, isVideoLocked, onlyShowHost, fakeUserCount } = req.body;
 
     const updates = {};
     if (typeof isVoiceLocked === "boolean") updates.isVoiceLocked = isVoiceLocked;
     if (typeof isVideoLocked === "boolean") updates.isVideoLocked = isVideoLocked;
+    if (typeof onlyShowHost === "boolean") updates.onlyShowHost = onlyShowHost;
     if (typeof fakeUserCount === "number") updates.fakeUserCount = fakeUserCount;
 
     await firebasePatch(`meetings/${id}`, updates);

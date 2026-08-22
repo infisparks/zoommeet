@@ -25,6 +25,7 @@ import { ChatMessage, ReactionItem } from "@/types";
 import { chatService } from "@/lib/services";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { api } from "@/lib/api";
 import {
   Video as VideoIcon,
   WifiOff,
@@ -40,6 +41,11 @@ import {
   Lock,
   MicOff,
   VideoOff,
+  Settings,
+  Shield,
+  Sliders,
+  Crown,
+  VolumeX,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
