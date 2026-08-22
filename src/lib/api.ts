@@ -151,4 +151,19 @@ export const api = {
       return { success: false, error: (err as Error).message };
     }
   },
+
+  /**
+   * Remote Diagnostic Logs for Firebase Troubleshooting
+   */
+  async logDiagnostic(meetingId: string, data: { action: string; message: string; level?: "info" | "warn" | "error"; details?: Record<string, unknown>; participant?: string }) {
+    try {
+      fetch(`${BACKEND_URL}/api/meetings/${meetingId}/logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).catch(() => {});
+    } catch {
+      // Non-blocking log
+    }
+  },
 };

@@ -136,6 +136,7 @@ function MeetingRoomInner({
   const [adminVideoLock, setAdminVideoLock] = useState(!!isVideoLocked);
   const [adminOnlyShowHost, setAdminOnlyShowHost] = useState(onlyShowHost ?? true);
   const [adminBoosterCount, setAdminBoosterCount] = useState(fakeUserCount || 200);
+  const [isCameraTransitioning, setIsCameraTransitioning] = useState(false);
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -454,6 +455,12 @@ function MeetingRoomInner({
     const currentStatus = localParticipant.isMicrophoneEnabled;
     const nextStatus = !currentStatus;
 
+    api.logDiagnostic(roomName, {
+      action: "mic_toggle_click",
+      message: `Toggle mic: ${currentStatus ? "ON -> OFF" : "OFF -> ON"}`,
+      participant: localParticipant.identity,
+    });
+
     try {
       await localParticipant.setMicrophoneEnabled(nextStatus, ZOOM_HD_AUDIO_OPTIONS);
     } catch (err: unknown) {
@@ -462,7 +469,12 @@ function MeetingRoomInner({
         await localParticipant.setMicrophoneEnabled(nextStatus);
       } catch (fallbackErr: unknown) {
         const error = fallbackErr as Error;
-        console.warn("Microphone fallback notice:", error);
+        api.logDiagnostic(roomName, {
+          action: "mic_toggle_error",
+          message: error?.message || "Unknown mic error",
+          level: "error",
+          participant: localParticipant.identity,
+        });
         if (
           error.name === "NotAllowedError" ||
           error.name === "PermissionDeniedError" ||
@@ -477,7 +489,7 @@ function MeetingRoomInner({
   };
 
   const handleToggleVideo = async () => {
-    if (!localParticipant) return;
+    if (!localParticipant || isCameraTransitioning) return;
     const isCoHost = coHosts.includes(localParticipant.identity);
     if (videoLocked && !isHost && !isCoHost) {
       alert("📹 Video is locked by the host for this webinar.");
@@ -486,53 +498,54 @@ function MeetingRoomInner({
 
     const currentStatus = localParticipant.isCameraEnabled;
     const nextStatus = !currentStatus;
+    setIsCameraTransitioning(true);
 
-    if (!nextStatus) {
-      // Turn off camera and stop hardware tracks
-      try {
-        await localParticipant.setCameraEnabled(false);
-      } catch {
-        const pub = localParticipant.getTrackPublication(Track.Source.Camera);
-        if (pub && pub.track) {
-          localParticipant.unpublishTrack(pub.track).catch(() => {});
-          pub.track.stop();
-        }
-      }
-      return;
-    }
+    api.logDiagnostic(roomName, {
+      action: "camera_toggle_click",
+      message: `Toggle camera initiated: ${currentStatus ? "ON -> OFF" : "OFF -> ON"}`,
+      participant: localParticipant.identity,
+      details: { facingMode: cameraFacing },
+    });
 
     try {
-      // 1. Direct native hardware capture (100% reliable and instantaneous on Android/iOS/Desktop)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: cameraFacing,
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-      });
-      const [mediaTrack] = stream.getVideoTracks();
-      if (mediaTrack) {
-        const localVideoTrack = new LocalVideoTrack(mediaTrack);
-        await localParticipant.publishTrack(localVideoTrack);
+      if (!nextStatus) {
+        await localParticipant.setCameraEnabled(false);
+        api.logDiagnostic(roomName, {
+          action: "camera_disabled_success",
+          message: "Camera turned OFF successfully",
+          participant: localParticipant.identity,
+        });
       } else {
-        await localParticipant.setCameraEnabled(true);
+        await localParticipant.setCameraEnabled(true, {
+          facingMode: cameraFacing,
+          resolution: { width: 640, height: 480, frameRate: 24 },
+        });
+        api.logDiagnostic(roomName, {
+          action: "camera_enabled_success",
+          message: "Camera turned ON successfully",
+          participant: localParticipant.identity,
+        });
       }
     } catch (err: unknown) {
-      console.warn("Direct native getUserMedia notice, trying standard fallback:", err);
-      try {
-        await localParticipant.setCameraEnabled(true);
-      } catch (fallbackErr: unknown) {
-        const fbError = fallbackErr as Error;
-        console.warn("Camera fallback notice:", fbError);
-        if (
-          fbError.name === "NotAllowedError" ||
-          fbError.name === "PermissionDeniedError"
-        ) {
-          setPermissionMediaType("camera");
-          setPermissionError("Camera access was denied. Please allow camera in browser settings.");
-          setShowPermissionModal(true);
-        }
+      const fbError = err as Error;
+      api.logDiagnostic(roomName, {
+        action: "camera_toggle_error",
+        message: fbError?.message || "Unknown camera error",
+        level: "error",
+        participant: localParticipant.identity,
+        details: { name: fbError?.name },
+      });
+      console.warn("Camera fallback notice:", fbError);
+      if (
+        fbError.name === "NotAllowedError" ||
+        fbError.name === "PermissionDeniedError"
+      ) {
+        setPermissionMediaType("camera");
+        setPermissionError("Camera access was denied. Please allow camera in browser settings.");
+        setShowPermissionModal(true);
       }
+    } finally {
+      setIsCameraTransitioning(false);
     }
   };
 
@@ -541,26 +554,14 @@ function MeetingRoomInner({
     const nextFacing = cameraFacing === "user" ? "environment" : "user";
     setCameraFacing(nextFacing);
     try {
-      const pub = localParticipant.getTrackPublication(Track.Source.Camera);
-      if (pub && pub.track) {
-        await localParticipant.unpublishTrack(pub.track).catch(() => {});
-        pub.track.stop();
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: nextFacing,
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
+      await localParticipant.setCameraEnabled(true, { facingMode: nextFacing });
+      api.logDiagnostic(roomName, {
+        action: "camera_flip_success",
+        message: `Flipped camera facing mode to ${nextFacing}`,
+        participant: localParticipant.identity,
       });
-      const [mediaTrack] = stream.getVideoTracks();
-      if (mediaTrack) {
-        const localVideoTrack = new LocalVideoTrack(mediaTrack);
-        await localParticipant.publishTrack(localVideoTrack);
-      }
     } catch (e) {
       console.warn("Flip camera fallback:", e);
-      localParticipant.setCameraEnabled(true, { facingMode: nextFacing }).catch(() => {});
     }
   };
 
@@ -572,14 +573,38 @@ function MeetingRoomInner({
       return;
     }
 
+    const nextStatus = !localParticipant.isScreenShareEnabled;
+    api.logDiagnostic(roomName, {
+      action: "screen_share_toggle_click",
+      message: `Toggle screen share: ${nextStatus ? "START" : "STOP"}`,
+      participant: localParticipant.identity,
+    });
+
     try {
       if (localParticipant.isScreenShareEnabled) {
         await localParticipant.setScreenShareEnabled(false);
+        api.logDiagnostic(roomName, {
+          action: "screen_share_stopped_success",
+          message: "Screen share stopped successfully",
+          participant: localParticipant.identity,
+        });
       } else {
         await localParticipant.setScreenShareEnabled(true);
+        api.logDiagnostic(roomName, {
+          action: "screen_share_started_success",
+          message: "Screen share started successfully",
+          participant: localParticipant.identity,
+        });
       }
     } catch (e: unknown) {
       const err = e as Error;
+      api.logDiagnostic(roomName, {
+        action: "screen_share_error",
+        message: err?.message || "Screen share error",
+        level: "error",
+        participant: localParticipant.identity,
+        details: { name: err?.name },
+      });
       console.warn("Screen share notice:", err?.message || err);
       if (err.name !== "AbortError" && !err.message?.includes("Permission denied") && !err.message?.includes("cancelled")) {
         alert("Screen sharing notice: " + (err.message || "Please check your browser permissions"));

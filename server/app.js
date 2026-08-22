@@ -337,6 +337,33 @@ app.post("/api/meetings/:id/lock", async (req, res) => {
   }
 });
 
+/**
+ * 8. Remote Diagnostic Logs for Meeting Troubleshooting
+ * POST /api/meetings/:id/logs
+ */
+app.post("/api/meetings/:id/logs", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, message, level = "info", details = {}, participant = "anonymous" } = req.body;
+    const logId = `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const logEntry = {
+      timestamp: Date.now(),
+      isoTime: new Date().toISOString(),
+      participant,
+      action: action || "general_log",
+      level,
+      message: message || "",
+      details,
+    };
+    await firebasePut(`meetings/${id}/logs/${logId}`, logEntry);
+    console.log(`[Diagnostic Log] [${id}] [${participant}] ${action}: ${message}`);
+    return res.json({ success: true, logId });
+  } catch (err) {
+    console.error("Diagnostic log error:", err);
+    res.status(500).json({ error: "Failed to record log" });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`=========================================`);
