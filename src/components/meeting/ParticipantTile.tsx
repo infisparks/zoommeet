@@ -52,11 +52,11 @@ export function ParticipantTile({
     .toUpperCase() || "A";
 
   const isRealTrack = isTrackReference(trackRef);
-  const hasVideoTrack =
-    isRealTrack &&
-    trackRef.publication?.track &&
-    !isVideoMuted.isMuted &&
-    trackRef.source === Track.Source.Camera;
+  const isCameraEnabled = Boolean(trackRef?.participant?.isCameraEnabled && !isVideoMuted.isMuted);
+  const hasVideoTrack = isRealTrack && (
+    (trackRef.publication?.track && !isVideoMuted.isMuted) ||
+    isCameraEnabled
+  );
 
   return (
     <div

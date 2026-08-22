@@ -970,25 +970,15 @@ export function MeetingRoom({
           audioPreset: { maxBitrate: 64000 },
           dtx: true,
           red: true,
-          simulcast: true,
-          videoSimulcastLayers: [
-            VideoPresets.h180,
-            VideoPresets.h360,
-            VideoPresets.h720,
-          ],
+          simulcast: false,
           videoCodec: "vp8",
           screenShareEncoding: {
             maxBitrate: 3500000,
             maxFramerate: 30,
           },
-          screenShareSimulcastLayers: [
-            ScreenSharePresets.h720fps15,
-            ScreenSharePresets.h1080fps30,
-          ],
         },
         audioCaptureDefaults: ZOOM_HD_AUDIO_OPTIONS,
         videoCaptureDefaults: {
-          resolution: VideoPresets.h720.resolution,
           facingMode: "user",
         },
         adaptiveStream: true,
