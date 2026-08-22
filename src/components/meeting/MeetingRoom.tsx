@@ -232,27 +232,36 @@ function MeetingRoomInner({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Attempt initial audio/video publishing once fully connected
+  // Attempt initial audio/video publishing once fully connected & hardware lock released
   useEffect(() => {
     if (!localParticipant || connectionState !== ConnectionState.Connected) return;
     if (publishedInitialRef.current) return;
     publishedInitialRef.current = true;
 
-    const timer = setTimeout(() => {
-      // If voice is locked and user is not host, do not enable mic
+    const timer = setTimeout(async () => {
+      // 1. Initial Microphone publish
       if (initialAudio && !localParticipant.isMicrophoneEnabled && (!voiceLocked || isHost)) {
-        localParticipant.setMicrophoneEnabled(true, ZOOM_HD_AUDIO_OPTIONS).catch(e => {
+        try {
+          await localParticipant.setMicrophoneEnabled(true, ZOOM_HD_AUDIO_OPTIONS);
+        } catch (e) {
           console.warn("Mic init notice:", e);
-        });
+        }
       }
 
-      // If video is locked and user is not host, do not enable video
+      // 2. Initial Camera publish (after PreJoin hardware release)
       if (initialVideo && !localParticipant.isCameraEnabled && (!videoLocked || isHost)) {
-        localParticipant.setCameraEnabled(true, { facingMode: cameraFacing }).catch(e => {
-          console.warn("Camera init notice:", e);
-        });
+        try {
+          await localParticipant.setCameraEnabled(true);
+        } catch (e) {
+          console.warn("Camera init retry fallback:", e);
+          try {
+            await localParticipant.setCameraEnabled(true);
+          } catch (retryErr) {
+            console.error("Camera init failed:", retryErr);
+          }
+        }
       }
-    }, 150);
+    }, 350);
 
     return () => clearTimeout(timer);
   }, [localParticipant, connectionState, initialAudio, initialVideo, cameraFacing, voiceLocked, videoLocked, isHost]);
@@ -428,10 +437,9 @@ function MeetingRoomInner({
     const nextStatus = !currentStatus;
 
     try {
-      await localParticipant.setCameraEnabled(nextStatus, { facingMode: cameraFacing });
+      await localParticipant.setCameraEnabled(nextStatus);
     } catch (err: unknown) {
-      const error = err as Error;
-      console.warn("Camera toggle notice, retrying fallback:", error);
+      console.warn("Camera toggle notice, retrying fallback:", err);
       try {
         await localParticipant.setCameraEnabled(nextStatus);
       } catch (fallbackErr: unknown) {
@@ -439,8 +447,7 @@ function MeetingRoomInner({
         console.warn("Camera fallback notice:", fbError);
         if (
           fbError.name === "NotAllowedError" ||
-          fbError.name === "PermissionDeniedError" ||
-          (fbError.message?.toLowerCase().includes("permission") && !fbError.message?.toLowerCase().includes("livekit"))
+          fbError.name === "PermissionDeniedError"
         ) {
           setPermissionMediaType("camera");
           setPermissionError("Camera access was denied. Please allow camera in browser settings.");
