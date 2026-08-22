@@ -6,8 +6,7 @@ import { PreJoin } from "@/components/meeting/PreJoin";
 import { MeetingRoom } from "@/components/meeting/MeetingRoom";
 import { WaitingRoomAttendeeView } from "@/components/meeting/WaitingRoom";
 import { useAuth } from "@/contexts/AuthContext";
-import { meetingService, meetingHistoryService } from "@/lib/services";
-import { Meeting } from "@/types";
+import { api, MeetingData } from "@/lib/api";
 import { AlertCircle } from "lucide-react";
 
 interface PageProps {
@@ -22,7 +21,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [meeting, setMeeting] = useState<Meeting | null>(null);
+  const [meeting, setMeeting] = useState<MeetingData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [inMeeting, setInMeeting] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
@@ -37,12 +36,12 @@ export default function MeetingRoomPage({ params }: PageProps) {
   useEffect(() => {
     async function fetchMeetingData() {
       try {
-        const found = await meetingService.getMeeting(meetingId);
+        const found = await api.getMeeting(meetingId);
         if (found) {
           setMeeting(found);
         }
       } catch (err) {
-        console.warn("Could not fetch meeting metadata:", err);
+        console.warn("Could not fetch meeting metadata from Firebase:", err);
       } finally {
         setIsLoading(false);
       }
@@ -68,57 +67,41 @@ export default function MeetingRoomPage({ params }: PageProps) {
     setJoinError(null);
 
     // Validate password if meeting has one
-    if (meeting?.passwordEnabled && meeting.password) {
-      if (enteredPassword !== meeting.password) {
+    if (meeting?.passcode) {
+      if (enteredPassword !== meeting.passcode) {
         setJoinError("Invalid meeting passcode. Please verify and try again.");
         return;
       }
-    }
-
-    // Check waiting room
-    if (meeting?.waitingRoomEnabled && !isHost) {
-      setIsWaiting(true);
     }
 
     setInitialAudio(audioEnabled);
     setInitialVideo(videoEnabled);
 
     try {
-      // Normalize room name so all participants connect to identical room string
-      const roomName = (meeting?.roomName || meetingId).trim().toLowerCase();
-      const role = isHost ? "host" : "participant";
+      const roomName = (meeting?.id || meetingId).trim().toLowerCase();
 
-      // ALWAYS generate a unique participant identity per tab/device to prevent collisions
+      // ALWAYS generate a unique participant identity per tab/device
       const deviceRandom = Math.random().toString(36).substring(2, 7);
       const uniqueIdentity = user?.id
         ? `${user.id}_${deviceRandom}`
         : `guest_${deviceRandom}_${Date.now().toString().slice(-4)}`;
 
-      const res = await fetch("/api/livekit/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomName,
-          participantName: displayName || "Guest Attendee",
-          participantIdentity: uniqueIdentity,
-          role,
-        }),
+      const data = await api.getLiveKitToken({
+        roomName,
+        participantName: displayName || "Guest Attendee",
+        participantIdentity: uniqueIdentity,
+        isHost,
+        passcode: enteredPassword,
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Failed to retrieve LiveKit room token");
+      if (!data || data.error || !data.token) {
+        throw new Error(data?.error || "Failed to retrieve LiveKit room token");
       }
 
       setToken(data.token);
-      if (data.serverUrl) setServerUrl(data.serverUrl);
-
-      // Log join history
-      meetingHistoryService.logEvent({
-        meetingId: roomName,
-        eventType: "participant_joined",
-        participantName: displayName,
-      });
+      if (data.livekitUrl || data.serverUrl) {
+        setServerUrl(data.livekitUrl || data.serverUrl);
+      }
 
       setInMeeting(true);
     } catch (err: unknown) {
@@ -133,7 +116,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
     if (user) {
       router.push("/dashboard");
     } else {
-      router.push("/");
+      router.push("/login");
     }
   };
 
@@ -142,7 +125,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white font-[Poppins,sans-serif]">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-sm font-medium text-slate-400">Loading meeting room details...</p>
+          <p className="text-sm font-medium text-slate-400">Connecting to Firebase & LiveKit room...</p>
         </div>
       </div>
     );
@@ -166,11 +149,14 @@ export default function MeetingRoomPage({ params }: PageProps) {
       <MeetingRoom
         serverUrl={serverUrl}
         token={token}
-        roomName={(meeting?.roomName || meetingId).trim().toLowerCase()}
+        roomName={(meeting?.id || meetingId).trim().toLowerCase()}
         meetingTitle={meeting?.title}
         isHost={isHost}
         initialAudio={initialAudio}
         initialVideo={initialVideo}
+        fakeUserCount={meeting?.fakeUserCount ?? 200}
+        isVoiceLocked={meeting?.isVoiceLocked}
+        isVideoLocked={meeting?.isVideoLocked}
         onLeave={handleLeave}
       />
     );
@@ -191,7 +177,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
         meetingId={meetingId}
         initialName={user?.name || (typeof window !== "undefined" ? sessionStorage.getItem("infiplus_guest_name") || "" : "")}
         isHost={isHost}
-        passwordRequired={Boolean(meeting?.passwordEnabled && meeting.password)}
+        passwordRequired={Boolean(meeting?.passcode)}
         onJoin={handleJoinFromPreJoin}
       />
     </div>

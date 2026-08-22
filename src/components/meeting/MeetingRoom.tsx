@@ -24,6 +24,7 @@ import { HostWaitingRoomBanner, WaitingUser } from "./WaitingRoom";
 import { ChatMessage, ReactionItem } from "@/types";
 import { chatService } from "@/lib/services";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import {
   Video as VideoIcon,
   WifiOff,
@@ -36,8 +37,12 @@ import {
   Maximize,
   Minimize,
   Users,
+  Lock,
+  MicOff,
+  VideoOff,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
+import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
 
 export const ZOOM_HD_AUDIO_OPTIONS = {
   echoCancellation: true,
@@ -55,6 +60,9 @@ interface MeetingRoomProps {
   isHost?: boolean;
   initialAudio?: boolean;
   initialVideo?: boolean;
+  fakeUserCount?: number;
+  isVoiceLocked?: boolean;
+  isVideoLocked?: boolean;
   onLeave: () => void;
 }
 
@@ -64,6 +72,9 @@ function MeetingRoomInner({
   isHost = false,
   initialAudio = false,
   initialVideo = false,
+  fakeUserCount = 200,
+  isVoiceLocked = false,
+  isVideoLocked = false,
   onLeave,
 }: {
   roomName: string;
@@ -71,6 +82,9 @@ function MeetingRoomInner({
   isHost?: boolean;
   initialAudio?: boolean;
   initialVideo?: boolean;
+  fakeUserCount?: number;
+  isVoiceLocked?: boolean;
+  isVideoLocked?: boolean;
   onLeave: () => void;
 }) {
   const connectionState = useConnectionState();
@@ -87,6 +101,16 @@ function MeetingRoomInner({
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [permissionMediaType, setPermissionMediaType] = useState<"camera" | "microphone" | "both">("both");
   const [permissionError, setPermissionError] = useState<string | null>(null);
+
+  // Social Proof Booster (fuser) & Webinar Lock State
+  const [fuserCount, setFuserCount] = useState(fakeUserCount || 200);
+  const [fakeUsers, setFakeUsers] = useState<VirtualParticipant[]>(() =>
+    generateFUsers(fakeUserCount || 200, roomName)
+  );
+  const [voiceLocked, setVoiceLocked] = useState(!!isVoiceLocked);
+  const [videoLocked, setVideoLocked] = useState(!!isVideoLocked);
+  const [showBoosterModal, setShowBoosterModal] = useState(false);
+  const [tempBoosterCount, setTempBoosterCount] = useState(fakeUserCount || 200);
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -204,7 +228,7 @@ function MeetingRoomInner({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Attempt initial audio/video publishing ONLY once fully connected
+  // Attempt initial audio/video publishing
   useEffect(() => {
     if (!localParticipant || connectionState !== ConnectionState.Connected) return;
     if (publishedInitialRef.current) return;
@@ -212,7 +236,8 @@ function MeetingRoomInner({
 
     const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
 
-    if (initialAudio && !localParticipant.isMicrophoneEnabled) {
+    // If voice is locked and user is not host, do not enable mic
+    if (initialAudio && !localParticipant.isMicrophoneEnabled && (!voiceLocked || isHost)) {
       const audioOptions = isMobile
         ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
         : {
@@ -224,12 +249,13 @@ function MeetingRoomInner({
       });
     }
 
-    if (initialVideo && !localParticipant.isCameraEnabled) {
+    // If video is locked and user is not host, do not enable video
+    if (initialVideo && !localParticipant.isCameraEnabled && (!videoLocked || isHost)) {
       localParticipant.setCameraEnabled(true, { facingMode: cameraFacing }).catch(() => {
         localParticipant.setCameraEnabled(true).catch(e => console.warn("Camera fallback init:", e));
       });
     }
-  }, [localParticipant, connectionState, initialAudio, initialVideo, cameraFacing]);
+  }, [localParticipant, connectionState, initialAudio, initialVideo, cameraFacing, voiceLocked, videoLocked, isHost]);
 
   // Load initial chat history
   useEffect(() => {
@@ -281,11 +307,26 @@ function MeetingRoomInner({
         if (localParticipant && localParticipant.identity === data.targetIdentity) {
           localParticipant.setMicrophoneEnabled(false).catch(() => {});
         }
+      } else if (data.type === "force_mute_all") {
+        setVoiceLocked(true);
+        if (!isHost && localParticipant) {
+          localParticipant.setMicrophoneEnabled(false).catch(() => {});
+        }
+      } else if (data.type === "force_lock_video") {
+        setVideoLocked(true);
+        if (!isHost && localParticipant) {
+          localParticipant.setCameraEnabled(false).catch(() => {});
+        }
+      } else if (data.type === "booster_update") {
+        if (data.count && typeof data.count === "number") {
+          setFuserCount(data.count);
+          setFakeUsers(generateFUsers(data.count, roomName));
+        }
       }
     } catch (e) {
       console.warn("Error decoding data channel packet", e);
     }
-  }, [roomName, isChatOpen, localParticipant, onLeave]);
+  }, [roomName, isChatOpen, localParticipant, isHost, onLeave]);
 
   const { send } = useDataChannel(onDataReceived);
 
@@ -298,163 +339,114 @@ function MeetingRoomInner({
     { onlySubscribed: false }
   );
 
-  const cameraTracks = tracks.filter(t => t.source === Track.Source.Camera);
   const screenShareTrack = tracks.find(
     t => t.source === Track.Source.ScreenShare && isTrackReference(t)
   );
 
-  // Guarantee every participant connected in the room (local or remote) is ALWAYS in the video grid
-  const allParticipantTiles = React.useMemo(() => {
-    const tileMap = new Map<string, TrackReferenceOrPlaceholder>();
-
-    // 1. First add all detected camera tracks/placeholders
-    cameraTracks.forEach(t => {
-      if (t.participant?.identity) {
-        tileMap.set(t.participant.identity, t);
-      }
-    });
-
-    // 2. Ensure every participant from useParticipants() has a tile even before camera publication
-    participants.forEach(p => {
-      if (!tileMap.has(p.identity)) {
-        tileMap.set(p.identity, {
-          participant: p,
-          source: Track.Source.Camera,
-        } as TrackReferenceOrPlaceholder);
-      }
-    });
-
-    // 3. Fallback: ensure local participant is always present
-    if (localParticipant && !tileMap.has(localParticipant.identity)) {
-      tileMap.set(localParticipant.identity, {
-        participant: localParticipant,
-        source: Track.Source.Camera,
-      } as TrackReferenceOrPlaceholder);
-    }
-
-    return Array.from(tileMap.values());
-  }, [cameraTracks, participants, localParticipant]);
-
-  const isLocalScreenSharing = Boolean(
-    localParticipant &&
-    screenShareTrack &&
-    screenShareTrack.participant?.identity === localParticipant.identity
-  );
+  const isLocalScreenSharing = !!localParticipant?.isScreenShareEnabled;
+  const allParticipantTiles = tracks.filter(t => t.source === Track.Source.Camera);
 
   const handleCopyMeetingLink = () => {
-    const url = `${window.location.origin}/meeting/${roomName}`;
+    const url = window.location.href;
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  // Media Controls Actions
+  const handleRetryPermission = async () => {
+    setShowPermissionModal(false);
+    setPermissionError(null);
+    try {
+      if (permissionMediaType === "camera" || permissionMediaType === "both") {
+        await localParticipant?.setCameraEnabled(true, { facingMode: cameraFacing });
+      }
+      if (permissionMediaType === "microphone" || permissionMediaType === "both") {
+        await localParticipant?.setMicrophoneEnabled(true, { echoCancellation: true, noiseSuppression: true });
+      }
+    } catch (e) {
+      console.warn("Manual retry permission notice:", e);
+    }
+  };
+
   const handleToggleMic = async () => {
     if (!localParticipant) return;
+    if (voiceLocked && !isHost) {
+      alert("🎙️ Voice is locked by the host for this webinar.");
+      return;
+    }
+
+    const currentStatus = localParticipant.isMicrophoneEnabled;
+    const nextStatus = !currentStatus;
+
     try {
-      const isCurrentlyEnabled = localParticipant.isMicrophoneEnabled;
-      if (!isCurrentlyEnabled) {
-        const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
-        const audioOptions = isMobile
-          ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-          : {
-              ...ZOOM_HD_AUDIO_OPTIONS,
-              ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
-            };
-        try {
-          await localParticipant.setMicrophoneEnabled(true, audioOptions);
-        } catch (subErr) {
-          console.warn("Audio start with constraints failed, retrying native:", subErr);
-          await localParticipant.setMicrophoneEnabled(true);
-        }
-      } else {
-        await localParticipant.setMicrophoneEnabled(false);
-      }
+      const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+      const audioOptions = isMobile
+        ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        : {
+            ...ZOOM_HD_AUDIO_OPTIONS,
+            ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
+          };
+
+      await localParticipant.setMicrophoneEnabled(nextStatus, audioOptions);
     } catch (err: unknown) {
-      const error = err as Error;
-      console.warn("Microphone toggle notice:", error);
-      if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
-        setPermissionMediaType("microphone");
-        setPermissionError("Microphone permission was denied by your browser.");
-        setShowPermissionModal(true);
+      console.warn("Microphone toggle notice, retrying with fallback:", err);
+      try {
+        await localParticipant.setMicrophoneEnabled(nextStatus);
+      } catch (fallbackErr: unknown) {
+        const error = fallbackErr as Error;
+        const msg = error?.message?.toLowerCase() || "";
+        if (msg.includes("permission") || msg.includes("notallowed") || msg.includes("denied")) {
+          setPermissionMediaType("microphone");
+          setPermissionError("Microphone access is blocked by browser permissions.");
+          setShowPermissionModal(true);
+        }
       }
     }
   };
 
   const handleToggleVideo = async () => {
     if (!localParticipant) return;
-    try {
-      const isCurrentlyEnabled = localParticipant.isCameraEnabled;
-      if (!isCurrentlyEnabled) {
-        try {
-          await localParticipant.setCameraEnabled(true, { facingMode: cameraFacing });
-        } catch (e: unknown) {
-          const firstErr = e as Error;
-          if (firstErr?.name === "NotAllowedError" || firstErr?.name === "PermissionDeniedError") {
-            setPermissionMediaType("camera");
-            setPermissionError("Camera permission was denied by your browser.");
-            setShowPermissionModal(true);
-            return;
-          }
-          console.warn("Camera start with facingMode failed, retrying standard:", e);
-          await localParticipant.setCameraEnabled(true);
-        }
-      } else {
-        await localParticipant.setCameraEnabled(false);
-      }
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.warn("Camera toggle notice:", error);
-      if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") {
-        setPermissionMediaType("camera");
-        setPermissionError("Camera permission was denied by your browser.");
-        setShowPermissionModal(true);
-      }
+    if (videoLocked && !isHost) {
+      alert("📹 Video is locked by the host for this webinar.");
+      return;
     }
-  };
 
-  const handleRetryPermission = async () => {
-    if (!localParticipant) return;
+    const currentStatus = localParticipant.isCameraEnabled;
+    const nextStatus = !currentStatus;
+
     try {
-      if (permissionMediaType === "microphone" || permissionMediaType === "both") {
-        const audioOptions = {
-          ...ZOOM_HD_AUDIO_OPTIONS,
-          ...(krispProcessorRef.current ? { processor: krispProcessorRef.current } : {}),
-        };
-        await localParticipant.setMicrophoneEnabled(true, audioOptions);
-      }
-      if (permissionMediaType === "camera" || permissionMediaType === "both") {
-        await localParticipant.setCameraEnabled(true, { facingMode: cameraFacing });
-      }
-      setShowPermissionModal(false);
-      setPermissionError(null);
+      await localParticipant.setCameraEnabled(nextStatus, { facingMode: cameraFacing });
     } catch (err: unknown) {
-      const error = err as Error;
-      setPermissionError(error?.message || "Permission is still blocked. Please check browser settings above.");
+      console.warn("Camera toggle notice, retrying with fallback:", err);
+      try {
+        await localParticipant.setCameraEnabled(nextStatus);
+      } catch (fallbackErr: unknown) {
+        const error = fallbackErr as Error;
+        const msg = error?.message?.toLowerCase() || "";
+        if (msg.includes("permission") || msg.includes("notallowed") || msg.includes("denied")) {
+          setPermissionMediaType("camera");
+          setPermissionError("Camera access is blocked by browser permissions.");
+          setShowPermissionModal(true);
+        }
+      }
     }
   };
 
   const handleFlipCamera = async () => {
-    if (!localParticipant) return;
+    if (!localParticipant || !localParticipant.isCameraEnabled) return;
+    const nextFacing = cameraFacing === "user" ? "environment" : "user";
+    setCameraFacing(nextFacing);
     try {
-      const nextFacing = cameraFacing === "user" ? "environment" : "user";
-      await localParticipant.setCameraEnabled(false);
-      try {
-        await localParticipant.setCameraEnabled(true, { facingMode: nextFacing });
-      } catch {
-        await localParticipant.setCameraEnabled(true);
-      }
-      setCameraFacing(nextFacing);
-    } catch (err) {
-      console.warn("Flip camera notice:", err);
+      await localParticipant.setCameraEnabled(true, { facingMode: nextFacing });
+    } catch (e) {
+      console.warn("Flip camera fallback:", e);
     }
   };
 
   const handleToggleScreenShare = async () => {
     if (!localParticipant) return;
     try {
-      const isSharing = localParticipant.isScreenShareEnabled;
-      if (isSharing) {
+      if (localParticipant.isScreenShareEnabled) {
         await localParticipant.setScreenShareEnabled(false);
       } else {
         await localParticipant.setScreenShareEnabled(true, {
@@ -462,11 +454,7 @@ function MeetingRoomInner({
           selfBrowserSurface: "include",
           surfaceSwitching: "include",
           systemAudio: "include",
-          resolution: {
-            width: 1920,
-            height: 1080,
-            frameRate: 30,
-          },
+          resolution: { width: 1920, height: 1080, frameRate: 30 },
           contentHint: "motion",
         });
       }
@@ -549,17 +537,35 @@ function MeetingRoomInner({
   };
 
   const handleMuteAll = () => {
+    setVoiceLocked(true);
     participants.forEach(p => {
       if (!p.isLocal) {
         handleMuteParticipant(p.identity);
       }
     });
+    const payload = JSON.stringify({ type: "force_mute_all" });
+    send(new TextEncoder().encode(payload), { reliable: true });
+  };
+
+  const handleLockAllVideo = () => {
+    setVideoLocked(true);
+    const payload = JSON.stringify({ type: "force_lock_video" });
+    send(new TextEncoder().encode(payload), { reliable: true });
   };
 
   const handleMakeCoHost = (identity: string) => {
     setCoHosts(prev =>
       prev.includes(identity) ? prev.filter(id => id !== identity) : [...prev, identity]
     );
+  };
+
+  const handleApplyBooster = () => {
+    setFuserCount(tempBoosterCount);
+    setFakeUsers(generateFUsers(tempBoosterCount, roomName));
+    setShowBoosterModal(false);
+
+    const payload = JSON.stringify({ type: "booster_update", count: tempBoosterCount });
+    send(new TextEncoder().encode(payload), { reliable: true });
   };
 
   // Build extended participant details for panel
@@ -580,12 +586,13 @@ function MeetingRoomInner({
     ? raisedHands.includes(localParticipant.identity)
     : false;
 
+  const totalConnectedCount = participants.length + fakeUsers.length;
+
   return (
     <div className="relative flex h-[100dvh] w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif]">
       {/* Audio Renderer for remote audio tracks */}
       <RoomAudioRenderer />
 
-      {/* Top Floating Info Bar */}
       {/* Minimal Floating Top Pill (Auto-Hides) */}
       <div
         className={`absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex items-center justify-between pointer-events-none transition-all duration-300 ${
@@ -614,12 +621,24 @@ function MeetingRoomInner({
             title="Click to view all attendees"
           >
             <Users className="w-3.5 h-3.5 text-indigo-300" />
-            <span>{participants.length}</span>
+            <span>{totalConnectedCount}</span>
           </button>
         </div>
 
-        {/* Right Actions: Quick Share & Fullscreen */}
+        {/* Right Actions: Quick Share, Booster & Fullscreen */}
         <div className="flex items-center gap-1.5 pointer-events-auto">
+          {isHost && (
+            <button
+              type="button"
+              onClick={() => setShowBoosterModal(true)}
+              className="flex items-center gap-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/40 px-3 py-1.5 text-xs font-semibold text-amber-200 backdrop-blur-md transition active:scale-95 cursor-pointer shadow-md"
+              title="Webinar Booster Config"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span className="hidden sm:inline text-[11px]">Booster ({fuserCount})</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleCopyMeetingLink}
@@ -702,7 +721,7 @@ function MeetingRoomInner({
         isChatOpen={isChatOpen}
         isParticipantsOpen={isParticipantsOpen}
         unreadCount={unreadCount}
-        participantCount={participants.length}
+        participantCount={totalConnectedCount}
         isFocusView={isFocusView}
         isHost={isHost}
         isVisible={showControls}
@@ -740,12 +759,75 @@ function MeetingRoomInner({
         isOpen={isParticipantsOpen}
         onClose={() => setIsParticipantsOpen(false)}
         participants={extendedParticipants}
+        fakeParticipants={fakeUsers}
         isCurrentUserHost={isHost}
+        isVoiceLocked={voiceLocked}
+        isVideoLocked={videoLocked}
         onMuteParticipant={handleMuteParticipant}
         onMuteAll={handleMuteAll}
+        onLockAllVideo={handleLockAllVideo}
         onMakeCoHost={handleMakeCoHost}
         onLowerHand={id => setRaisedHands(prev => prev.filter(x => x !== id))}
+        onOpenBoosterConfig={() => setShowBoosterModal(true)}
       />
+
+      {/* Host Webinar Booster Modal */}
+      {showBoosterModal && isHost && (
+        <Modal
+          isOpen={showBoosterModal}
+          onClose={() => setShowBoosterModal(false)}
+          title="Webinar Social Proof Booster (fuser)"
+          description="Adjust simulated Indian attendee count in real-time to build audience trust."
+          maxWidth="md"
+        >
+          <div className="space-y-4 pt-1">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Simulated Indian Attendees Count
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  value={tempBoosterCount}
+                  onChange={e => setTempBoosterCount(parseInt(e.target.value, 10) || 0)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+              <div className="flex gap-2 mt-2">
+                {[50, 100, 200, 500, 1000].map(cnt => (
+                  <button
+                    key={cnt}
+                    type="button"
+                    onClick={() => setTempBoosterCount(cnt)}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors ${
+                      tempBoosterCount === cnt
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {cnt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 text-xs text-indigo-800">
+              💡 Total attendee count will immediately update to <strong>{participants.length + tempBoosterCount}</strong> for all attendees in this room.
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button variant="outline" size="sm" onClick={() => setShowBoosterModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleApplyBooster} className="bg-indigo-600 hover:bg-indigo-700">
+                Apply Social Proof
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Mobile Permission Modal */}
       <PermissionModal
@@ -767,6 +849,9 @@ export function MeetingRoom({
   isHost = false,
   initialAudio = false,
   initialVideo = false,
+  fakeUserCount = 200,
+  isVoiceLocked = false,
+  isVideoLocked = false,
   onLeave,
 }: MeetingRoomProps) {
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -816,9 +901,7 @@ export function MeetingRoom({
       video={false}
       options={{
         publishDefaults: {
-          audioPreset: {
-            maxBitrate: 64000,
-          },
+          audioPreset: { maxBitrate: 64000 },
           dtx: true,
           red: true,
           simulcast: true,
@@ -849,7 +932,6 @@ export function MeetingRoom({
       className="h-[100dvh] w-screen bg-[#070B14]"
       onError={err => {
         const msg = err?.message || "";
-        // Only set error for fatal token validation rejection, NEVER for reconnection/signaling retry
         if (
           msg.includes("token signature is invalid") ||
           msg.includes("invalid token")
@@ -867,6 +949,9 @@ export function MeetingRoom({
         isHost={isHost}
         initialAudio={initialAudio}
         initialVideo={initialVideo}
+        fakeUserCount={fakeUserCount}
+        isVoiceLocked={isVoiceLocked}
+        isVideoLocked={isVideoLocked}
         onLeave={onLeave}
       />
     </LiveKitRoom>

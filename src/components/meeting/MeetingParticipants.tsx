@@ -16,8 +16,12 @@ import {
   VolumeX,
   Search,
   UserCheck,
+  Sparkles,
+  Lock,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { VirtualParticipant } from "@/lib/indianNames";
 
 export interface ExtendedParticipantInfo {
   identity: string;
@@ -36,31 +40,47 @@ interface MeetingParticipantsProps {
   isOpen: boolean;
   onClose: () => void;
   participants: ExtendedParticipantInfo[];
+  fakeParticipants?: VirtualParticipant[];
   isCurrentUserHost?: boolean;
+  isVoiceLocked?: boolean;
+  isVideoLocked?: boolean;
   onMuteParticipant?: (identity: string) => void;
   onMuteAll?: () => void;
+  onLockAllVideo?: () => void;
   onMakeCoHost?: (identity: string) => void;
   onLowerHand?: (identity: string) => void;
+  onOpenBoosterConfig?: () => void;
 }
 
 export function MeetingParticipants({
   isOpen,
   onClose,
   participants,
+  fakeParticipants = [],
   isCurrentUserHost = false,
+  isVoiceLocked = false,
+  isVideoLocked = false,
   onMuteParticipant,
   onMuteAll,
+  onLockAllVideo,
   onMakeCoHost,
   onLowerHand,
+  onOpenBoosterConfig,
 }: MeetingParticipantsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const filteredParticipants = participants.filter(p =>
+  const totalAttendeesCount = participants.length + fakeParticipants.length;
+
+  const filteredReal = participants.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.identity.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredFake = fakeParticipants.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -74,17 +94,30 @@ export function MeetingParticipants({
           <div>
             <h3 className="font-bold text-sm text-white tracking-tight">People in Call</h3>
             <p className="text-[11px] text-indigo-300 font-mono">
-              {participants.length} {participants.length === 1 ? "person" : "people"} connected
+              {totalAttendeesCount} {totalAttendeesCount === 1 ? "person" : "people"} connected
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-        >
-          <X className="h-5 w-5" />
-        </button>
+
+        <div className="flex items-center gap-1.5">
+          {isCurrentUserHost && onOpenBoosterConfig && (
+            <button
+              type="button"
+              onClick={onOpenBoosterConfig}
+              className="rounded-xl p-2 text-amber-400 hover:bg-white/10 hover:text-amber-300 transition-colors cursor-pointer"
+              title="Webinar Booster Settings"
+            >
+              <Sparkles className="h-4.5 w-4.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Search Filter */}
@@ -93,7 +126,7 @@ export function MeetingParticipants({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search participants..."
+            placeholder="Search attendees by name..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -103,33 +136,46 @@ export function MeetingParticipants({
 
       {/* Host Moderation Quick Bar */}
       {isCurrentUserHost && (
-        <div className="flex items-center justify-between border-b border-white/5 bg-indigo-950/20 px-4 py-2 shrink-0">
-          <span className="text-xs text-indigo-300 font-semibold flex items-center gap-1.5">
+        <div className="flex items-center justify-between border-b border-white/5 bg-indigo-950/30 px-3 py-2 shrink-0 gap-2 overflow-x-auto">
+          <span className="text-[11px] text-indigo-300 font-semibold flex items-center gap-1 shrink-0">
             <Crown className="w-3.5 h-3.5 text-amber-400" />
-            <span>Host Controls</span>
+            <span>Host Controls:</span>
           </span>
-          {onMuteAll && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onMuteAll}
-              className="text-xs h-7 px-3 bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20"
-            >
-              <VolumeX className="w-3.5 h-3.5 mr-1" />
-              <span>Mute All</span>
-            </Button>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onMuteAll && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onMuteAll}
+                className="text-xs h-7 px-2.5 bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/20"
+              >
+                <VolumeX className="w-3.5 h-3.5 mr-1" />
+                <span>Mute All</span>
+              </Button>
+            )}
+            {onLockAllVideo && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onLockAllVideo}
+                className="text-xs h-7 px-2.5 bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20"
+              >
+                <Lock className="w-3.5 h-3.5 mr-1" />
+                <span>Lock Video</span>
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
       {/* Participants Scroll List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {filteredParticipants.length === 0 ? (
-          <div className="text-center py-10 text-slate-400 text-xs">
-            No participants found matching &quot;{searchQuery}&quot;
-          </div>
-        ) : (
-          filteredParticipants.map(p => {
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {/* 1. Real Participants */}
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+            Speakers & Hosts ({filteredReal.length})
+          </p>
+          {filteredReal.map(p => {
             const initials = p.name
               .split(" ")
               .map(x => x[0])
@@ -140,13 +186,13 @@ export function MeetingParticipants({
             return (
               <div
                 key={p.identity}
-                className="group relative flex items-center justify-between rounded-2xl p-3 bg-white/5 hover:bg-white/10 transition-all border border-white/5 hover:border-indigo-500/30 shadow-xs"
+                className="group relative flex items-center justify-between rounded-2xl p-2.5 bg-white/5 hover:bg-white/10 transition-all border border-white/5 hover:border-indigo-500/30 shadow-xs"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {/* Avatar with Speaking Glow Indicator */}
                   <div className="relative shrink-0">
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white text-xs font-bold shadow-md border ${
+                      className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white text-xs font-bold shadow-md border ${
                         p.isSpeaking
                           ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900 animate-pulse border-emerald-400"
                           : "border-white/20"
@@ -183,7 +229,7 @@ export function MeetingParticipants({
                           <Shield className="w-2.5 h-2.5" /> Co-Host
                         </span>
                       ) : (
-                        <span className="text-[10px] text-slate-400">Attendee</span>
+                        <span className="text-[10px] text-slate-400">Speaker</span>
                       )}
                     </div>
                   </div>
@@ -191,14 +237,12 @@ export function MeetingParticipants({
 
                 {/* Status Badges & Controls */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Hand Raised */}
                   {p.isHandRaised && (
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/30" title="Hand Raised">
                       <Hand className="w-3.5 h-3.5 fill-current" />
                     </span>
                   )}
 
-                  {/* Mic Status */}
                   <span
                     className={`flex h-7 w-7 items-center justify-center rounded-lg ${
                       p.isAudioEnabled
@@ -210,7 +254,6 @@ export function MeetingParticipants({
                     {p.isAudioEnabled ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
                   </span>
 
-                  {/* Video Status */}
                   <span
                     className={`flex h-7 w-7 items-center justify-center rounded-lg ${
                       p.isVideoEnabled
@@ -222,14 +265,12 @@ export function MeetingParticipants({
                     {p.isVideoEnabled ? <VideoIcon className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
                   </span>
 
-                  {/* Host Action Dropdown */}
                   {isCurrentUserHost && !p.isLocal && (
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => setActiveMenuId(activeMenuId === p.identity ? null : p.identity)}
                         className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 cursor-pointer"
-                        title="Moderator Actions"
                       >
                         <MoreVertical className="w-3.5 h-3.5" />
                       </button>
@@ -282,7 +323,49 @@ export function MeetingParticipants({
                 </div>
               </div>
             );
-          })
+          })}
+        </div>
+
+        {/* 2. Simulated Indian Attendees (Social Proof Booster) */}
+        {filteredFake.length > 0 && (
+          <div className="space-y-1.5 pt-2 border-t border-white/5">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Audience Attendees ({filteredFake.length})
+              </p>
+              <span className="text-[9px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.2 rounded-md">
+                Connected
+              </span>
+            </div>
+
+            {filteredFake.slice(0, 150).map(f => (
+              <div
+                key={f.identity}
+                className="flex items-center justify-between rounded-2xl p-2.5 bg-white/5 hover:bg-white/8 transition-colors border border-white/5"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-slate-200 text-xs font-semibold border border-white/10">
+                    {f.initials}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="truncate text-xs font-medium text-slate-200 block">
+                      {f.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500">Attendee (View Only)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 text-slate-500">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/5 text-slate-400" title="Muted">
+                    <MicOff className="w-3 h-3" />
+                  </span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/5 text-slate-400" title="Camera Off">
+                    <VideoOff className="w-3 h-3" />
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

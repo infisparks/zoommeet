@@ -9,8 +9,18 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
-import { meetingService } from "@/lib/services";
-import { Video, ShieldCheck, Lock, Copy, Check } from "lucide-react";
+import { api } from "@/lib/api";
+import {
+  Video,
+  ShieldCheck,
+  Lock,
+  MicOff,
+  VideoOff,
+  Users,
+  Sparkles,
+  Copy,
+  Check,
+} from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -22,9 +32,12 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isInstantModalOpen, setIsInstantModalOpen] = useState(false);
   const [meetingTitle, setMeetingTitle] = useState("");
-  const [waitingRoom, setWaitingRoom] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
   const [password, setPassword] = useState("");
+  const [isVoiceLocked, setIsVoiceLocked] = useState(false);
+  const [isVideoLocked, setIsVideoLocked] = useState(false);
+  const [fakeUserCount, setFakeUserCount] = useState(200);
+  const [enableBooster, setEnableBooster] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [createdMeetingUrl, setCreatedMeetingUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -43,21 +56,23 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
     if (!user) return;
     setIsCreating(true);
     try {
-      const meeting = await meetingService.createMeeting({
+      const res = await api.createMeeting({
         title: meetingTitle || `${user.name}'s Meeting`,
         hostId: user.id,
         hostName: user.name,
-        hostEmail: user.email,
-        waitingRoomEnabled: waitingRoom,
-        passwordEnabled: hasPassword,
-        password: hasPassword ? password : undefined,
+        passcode: hasPassword ? password : "",
+        isVoiceLocked,
+        isVideoLocked,
+        isWebinar: isVoiceLocked && isVideoLocked,
+        fakeUserCount: enableBooster ? fakeUserCount : 0,
       });
 
-      const url = `${window.location.origin}/meeting/${meeting.meetingId}`;
-      setCreatedMeetingUrl(url);
-
-      // Navigate immediately to meeting room
-      router.push(`/meeting/${meeting.meetingId}`);
+      if (res.success && res.meeting) {
+        const url = `${window.location.origin}/meeting/${res.meeting.id}`;
+        setCreatedMeetingUrl(url);
+        // Navigate immediately
+        router.push(`/meeting/${res.meeting.id}`);
+      }
     } catch (err) {
       console.error("Failed to start instant meeting:", err);
     } finally {
@@ -75,7 +90,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-[#F5F6F8]">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         <div className="lg:pl-72 flex flex-col min-h-screen">
@@ -94,49 +109,130 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
         <Modal
           isOpen={isInstantModalOpen}
           onClose={() => setIsInstantModalOpen(false)}
-          title="Start an Instant Meeting"
-          description="Create a secure LiveKit room and invite your team members."
-          maxWidth="md"
+          title="Create Meeting or Webinar"
+          description="Configure webinar locks and simulated social proof before launching."
+          maxWidth="lg"
         >
           <div className="space-y-4 pt-1">
             <Input
-              label="Meeting Topic"
+              label="Meeting / Webinar Title"
               value={meetingTitle}
               onChange={e => setMeetingTitle(e.target.value)}
-              placeholder="e.g. Executive Strategy or Sprint Planning"
+              placeholder="e.g. Executive Product Launch Webinar"
             />
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3.5">
+            {/* Webinar & Security Controls */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3.5">
+              {/* Voice Lock */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
+                    <MicOff className="w-4 h-4" />
+                  </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Waiting Room</p>
-                    <p className="text-xs text-slate-500">Host must approve guests before they enter</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900">Voice Lock (Mute Attendees)</p>
+                    <p className="text-[11px] text-slate-500">Only host & co-hosts can speak. Attendees cannot unmute.</p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
-                  checked={waitingRoom}
-                  onChange={e => setWaitingRoom(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  checked={isVoiceLocked}
+                  onChange={e => setIsVoiceLocked(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
               </div>
 
+              {/* Video Lock */}
+              <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+                    <VideoOff className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900">Video Lock (Disable Cameras)</p>
+                    <p className="text-[11px] text-slate-500">Attendees cannot broadcast video. Preserves bandwidth.</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isVideoLocked}
+                  onChange={e => setIsVideoLocked(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Webinar Social Proof Booster (fuser) */}
               <div className="border-t border-slate-200/60 pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <Lock className="w-5 h-5 text-purple-600" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-800">Passcode Protection</p>
-                      <p className="text-xs text-slate-500">Require participants to enter a password</p>
+                      <p className="text-xs sm:text-sm font-bold text-slate-900">Webinar Social Proof Booster (fuser)</p>
+                      <p className="text-[11px] text-slate-500">Simulates active Indian attendees to build enterprise authority</p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={enableBooster}
+                    onChange={e => setEnableBooster(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </div>
+
+                {enableBooster && (
+                  <div className="mt-2.5 pl-11 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={fakeUserCount}
+                        onChange={e => setFakeUserCount(parseInt(e.target.value, 10) || 0)}
+                        className="w-28 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-indigo-600"
+                      />
+                      <div className="flex gap-1.5">
+                        {[50, 100, 200, 500].map(cnt => (
+                          <button
+                            key={cnt}
+                            type="button"
+                            onClick={() => setFakeUserCount(cnt)}
+                            className={`rounded-lg px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors ${
+                              fakeUserCount === cnt
+                                ? "bg-indigo-600 text-white"
+                                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            +{cnt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-indigo-600 font-medium">
+                      💡 {fakeUserCount} authentic Indian names will automatically populate attendees list & total count
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Passcode Protection */}
+              <div className="border-t border-slate-200/60 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm font-bold text-slate-900">Passcode Protection</p>
+                      <p className="text-[11px] text-slate-500">Require participants to enter a password</p>
                     </div>
                   </div>
                   <input
                     type="checkbox"
                     checked={hasPassword}
                     onChange={e => setHasPassword(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                 </div>
                 {hasPassword && (
@@ -144,7 +240,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                     placeholder="Enter meeting passcode"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="mt-2 text-sm"
+                    className="mt-2 text-xs"
                   />
                 )}
               </div>
@@ -161,7 +257,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                 </div>
                 <Button
                   variant="primary"
-                  className="w-full h-12 text-sm font-bold"
+                  className="w-full h-11 text-sm font-bold bg-indigo-600 hover:bg-indigo-700"
                   onClick={() => router.push(createdMeetingUrl)}
                 >
                   Enter Room
@@ -180,10 +276,11 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                   variant="primary"
                   size="md"
                   isLoading={isCreating}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
                   onClick={handleCreateAndStartMeeting}
                 >
                   <Video className="w-4 h-4 mr-1.5" />
-                  <span>Start Meeting</span>
+                  <span>Launch Meeting</span>
                 </Button>
               </div>
             )}

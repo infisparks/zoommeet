@@ -4,9 +4,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role?: string;
   avatar?: string;
   company?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type MeetingStatus = "scheduled" | "live" | "ended" | "cancelled";
