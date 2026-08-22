@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "server": "node server/app.js",
+    "start:all": "node server/app.js & next start -p 3000",
     "lint": "eslint"
   },
   "dependencies": {

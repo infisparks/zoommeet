@@ -1,6 +1,6 @@
 /**
  * Backend API Client for Zoomeet / Infiplus
- * Connecting Next.js Client to Node.js backend (meets.infiplus.in)
+ * Connects directly to the Node.js backend (meets.infiplus.in)
  */
 
 export const BACKEND_URL =
@@ -49,17 +49,7 @@ export const api = {
       });
       return await res.json();
     } catch (err) {
-      // Fallback to relative /api/auth/login if backend is proxying
-      try {
-        const fallbackRes = await fetch(`/api/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        return await fallbackRes.json();
-      } catch {
-        return { success: false, error: (err as Error).message || "Cannot reach authentication server" };
-      }
+      return { success: false, error: (err as Error).message || "Cannot reach authentication server" };
     }
   },
 
@@ -80,14 +70,8 @@ export const api = {
         body: JSON.stringify(params),
       });
       return await res.json();
-    } catch {
-      // Fallback
-      const fallbackRes = await fetch(`/api/livekit/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
-      });
-      return await fallbackRes.json();
+    } catch (err) {
+      return { error: (err as Error).message || "Cannot connect to LiveKit token server" };
     }
   },
 
@@ -135,7 +119,7 @@ export const api = {
   },
 
   /**
-   * Fetch Simulated Indian Attendees ("fuser") for Webinar
+   * Fetch Simulated Indian Attendees ("fusers" for Webinar Social Proof)
    */
   async getFUsers(meetingId: string, count: number) {
     try {
