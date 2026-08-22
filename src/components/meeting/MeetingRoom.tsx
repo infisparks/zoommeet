@@ -322,6 +322,17 @@ function MeetingRoomInner({
           setFuserCount(data.count);
           setFakeUsers(generateFUsers(data.count, roomName));
         }
+      } else if (data.type === "cohost_toggle") {
+        setCoHosts(prev => {
+          if (data.isCoHost) {
+            if (localParticipant && localParticipant.identity === data.identity) {
+              alert("🎉 You are now a Co-Host! You can now unmute your mic and share your camera.");
+            }
+            return prev.includes(data.identity) ? prev : [...prev, data.identity];
+          } else {
+            return prev.filter(id => id !== data.identity);
+          }
+        });
       }
     } catch (e) {
       console.warn("Error decoding data channel packet", e);
@@ -370,7 +381,8 @@ function MeetingRoomInner({
 
   const handleToggleMic = async () => {
     if (!localParticipant) return;
-    if (voiceLocked && !isHost) {
+    const isCoHost = coHosts.includes(localParticipant.identity);
+    if (voiceLocked && !isHost && !isCoHost) {
       alert("🎙️ Voice is locked by the host for this webinar.");
       return;
     }
@@ -406,7 +418,8 @@ function MeetingRoomInner({
 
   const handleToggleVideo = async () => {
     if (!localParticipant) return;
-    if (videoLocked && !isHost) {
+    const isCoHost = coHosts.includes(localParticipant.identity);
+    if (videoLocked && !isHost && !isCoHost) {
       alert("📹 Video is locked by the host for this webinar.");
       return;
     }
@@ -554,9 +567,17 @@ function MeetingRoomInner({
   };
 
   const handleMakeCoHost = (identity: string) => {
+    const isAlready = coHosts.includes(identity);
+    const newStatus = !isAlready;
     setCoHosts(prev =>
-      prev.includes(identity) ? prev.filter(id => id !== identity) : [...prev, identity]
+      newStatus ? [...prev, identity] : prev.filter(id => id !== identity)
     );
+    const payload = JSON.stringify({
+      type: "cohost_toggle",
+      identity,
+      isCoHost: newStatus,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
   };
 
   const handleApplyBooster = () => {
