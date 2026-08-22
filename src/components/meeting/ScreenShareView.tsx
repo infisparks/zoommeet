@@ -129,7 +129,7 @@ export function ScreenShareView({
 
       {/* Main Screen Share Stage */}
       <div className="relative flex-1 min-h-0 w-full rounded-2xl bg-black border-2 border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center">
-        {isRealTrack ? (
+        {isTrackReference(screenTrack) ? (
           <VideoTrack
             trackRef={screenTrack as TrackReference}
             className="h-full w-full object-contain"

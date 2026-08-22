@@ -576,30 +576,13 @@ function MeetingRoomInner({
       if (localParticipant.isScreenShareEnabled) {
         await localParticipant.setScreenShareEnabled(false);
       } else {
-        const isMobile = typeof navigator !== "undefined" && /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
-        if (isMobile) {
-          await localParticipant.setScreenShareEnabled(true, { audio: false });
-        } else {
-          await localParticipant.setScreenShareEnabled(true, {
-            audio: true,
-            selfBrowserSurface: "include",
-            surfaceSwitching: "include",
-            systemAudio: "include",
-          });
-        }
+        await localParticipant.setScreenShareEnabled(true);
       }
     } catch (e: unknown) {
       const err = e as Error;
-      console.warn("Screen share notice, attempting fallback:", err?.message || err);
+      console.warn("Screen share notice:", err?.message || err);
       if (err.name !== "AbortError" && !err.message?.includes("Permission denied") && !err.message?.includes("cancelled")) {
-        try {
-          await localParticipant.setScreenShareEnabled(true);
-        } catch (fallbackErr: unknown) {
-          const fbErr = fallbackErr as Error;
-          if (fbErr.name !== "AbortError" && !fbErr.message?.includes("Permission denied")) {
-            alert("Screen sharing notice: " + (fbErr.message || "Please check your browser permissions"));
-          }
-        }
+        alert("Screen sharing notice: " + (err.message || "Please check your browser permissions"));
       }
     }
   };
