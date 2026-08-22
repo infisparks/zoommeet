@@ -52,11 +52,9 @@ export function ParticipantTile({
     .toUpperCase() || "A";
 
   const isRealTrack = isTrackReference(trackRef);
-  const isCameraEnabled = Boolean(trackRef?.participant?.isCameraEnabled && !isVideoMuted.isMuted);
-  const hasVideoTrack = isRealTrack && (
-    (trackRef.publication?.track && !isVideoMuted.isMuted) ||
-    isCameraEnabled
-  );
+  const track = trackRef.publication?.track;
+  const isMuted = Boolean(trackRef.publication?.isMuted || !trackRef.participant?.isCameraEnabled);
+  const hasLiveVideo = Boolean(isRealTrack && track && !isMuted);
 
   return (
     <div
@@ -67,11 +65,14 @@ export function ParticipantTile({
       } ${className}`}
     >
       {/* Real Video Track or Avatar Fallback */}
-      {isRealTrack && hasVideoTrack ? (
+      {hasLiveVideo ? (
         <div className={`h-full w-full ${trackRef?.participant?.isLocal ? "scale-x-[-1]" : ""}`}>
           <VideoTrack
             trackRef={trackRef as TrackReference}
             className="h-full w-full object-cover"
+            autoPlay
+            playsInline
+            muted={trackRef?.participant?.isLocal}
           />
         </div>
       ) : (

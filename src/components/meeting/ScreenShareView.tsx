@@ -133,6 +133,8 @@ export function ScreenShareView({
           <VideoTrack
             trackRef={screenTrack as TrackReference}
             className="h-full w-full object-contain"
+            autoPlay
+            playsInline
           />
         ) : (
           <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
