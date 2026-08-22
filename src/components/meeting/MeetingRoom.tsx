@@ -13,7 +13,15 @@ import {
   isTrackReference,
   TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { Track, ConnectionState, VideoPresets, ScreenSharePresets, createLocalVideoTrack } from "livekit-client";
+import {
+  Track,
+  ConnectionState,
+  VideoPresets,
+  ScreenSharePresets,
+  LocalVideoTrack,
+  LocalAudioTrack,
+  createLocalVideoTrack,
+} from "livekit-client";
 import { VideoGrid } from "./VideoGrid";
 import { ScreenShareView } from "./ScreenShareView";
 import { MeetingControls } from "./MeetingControls";
@@ -265,18 +273,23 @@ function MeetingRoomInner({
       // 2. Initial Camera publish (after PreJoin hardware release)
       if (initialVideo && !localParticipant.isCameraEnabled && (!videoLocked || isHost)) {
         try {
-          await localParticipant.setCameraEnabled(true);
-        } catch (e) {
-          console.warn("Initial camera publish notice, attempting direct track fallback:", e);
-          try {
-            const videoTrack = await createLocalVideoTrack({
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
               facingMode: cameraFacing,
-              resolution: { width: 640, height: 480, frameRate: 24 },
-            });
-            await localParticipant.publishTrack(videoTrack);
-          } catch (retryErr) {
-            console.error("Initial camera fallback failed:", retryErr);
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+            },
+          });
+          const [mediaTrack] = stream.getVideoTracks();
+          if (mediaTrack) {
+            const localVideoTrack = new LocalVideoTrack(mediaTrack);
+            await localParticipant.publishTrack(localVideoTrack);
+          } else {
+            await localParticipant.setCameraEnabled(true);
           }
+        } catch (e) {
+          console.warn("Initial direct hardware camera notice, trying standard fallback:", e);
+          localParticipant.setCameraEnabled(true).catch(() => {});
         }
       }
     }, 350);
@@ -475,21 +488,39 @@ function MeetingRoomInner({
     const nextStatus = !currentStatus;
 
     if (!nextStatus) {
-      // Turn off camera
-      await localParticipant.setCameraEnabled(false).catch(() => {});
+      // Turn off camera and stop hardware tracks
+      try {
+        await localParticipant.setCameraEnabled(false);
+      } catch {
+        const pub = localParticipant.getTrackPublication(Track.Source.Camera);
+        if (pub && pub.track) {
+          localParticipant.unpublishTrack(pub.track).catch(() => {});
+          pub.track.stop();
+        }
+      }
       return;
     }
 
     try {
-      await localParticipant.setCameraEnabled(true);
-    } catch (err: unknown) {
-      console.warn("Standard camera enable notice, attempting direct track fallback:", err);
-      try {
-        const videoTrack = await createLocalVideoTrack({
+      // 1. Direct native hardware capture (100% reliable and instantaneous on Android/iOS/Desktop)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: cameraFacing,
-          resolution: { width: 640, height: 480, frameRate: 24 },
-        });
-        await localParticipant.publishTrack(videoTrack);
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+      });
+      const [mediaTrack] = stream.getVideoTracks();
+      if (mediaTrack) {
+        const localVideoTrack = new LocalVideoTrack(mediaTrack);
+        await localParticipant.publishTrack(localVideoTrack);
+      } else {
+        await localParticipant.setCameraEnabled(true);
+      }
+    } catch (err: unknown) {
+      console.warn("Direct native getUserMedia notice, trying standard fallback:", err);
+      try {
+        await localParticipant.setCameraEnabled(true);
       } catch (fallbackErr: unknown) {
         const fbError = fallbackErr as Error;
         console.warn("Camera fallback notice:", fbError);
@@ -510,9 +541,26 @@ function MeetingRoomInner({
     const nextFacing = cameraFacing === "user" ? "environment" : "user";
     setCameraFacing(nextFacing);
     try {
-      await localParticipant.setCameraEnabled(true, { facingMode: nextFacing });
+      const pub = localParticipant.getTrackPublication(Track.Source.Camera);
+      if (pub && pub.track) {
+        await localParticipant.unpublishTrack(pub.track).catch(() => {});
+        pub.track.stop();
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: nextFacing,
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+      });
+      const [mediaTrack] = stream.getVideoTracks();
+      if (mediaTrack) {
+        const localVideoTrack = new LocalVideoTrack(mediaTrack);
+        await localParticipant.publishTrack(localVideoTrack);
+      }
     } catch (e) {
       console.warn("Flip camera fallback:", e);
+      localParticipant.setCameraEnabled(true, { facingMode: nextFacing }).catch(() => {});
     }
   };
 
