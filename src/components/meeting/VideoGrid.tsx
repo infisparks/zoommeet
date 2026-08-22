@@ -9,6 +9,7 @@ interface VideoGridProps {
   hostIdentity?: string;
   coHostIdentities?: string[];
   raisedHandIdentities?: string[];
+  customNames?: Record<string, string>;
   isFocusView?: boolean;
 }
 
@@ -17,6 +18,7 @@ export function VideoGrid({
   hostIdentity,
   coHostIdentities = [],
   raisedHandIdentities = [],
+  customNames = {},
   isFocusView = false,
 }: VideoGridProps) {
   const [pinnedIdentity, setPinnedIdentity] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export function VideoGrid({
             isHost={focusTrack.participant.identity === hostIdentity}
             isCoHost={coHostIdentities.includes(focusTrack.participant.identity)}
             isHandRaised={raisedHandIdentities.includes(focusTrack.participant.identity)}
+            customName={customNames[focusTrack.participant.identity]}
             isPinned={pinnedIdentity === focusTrack.participant.identity}
             onTogglePin={() =>
               setPinnedIdentity(
@@ -65,6 +68,7 @@ export function VideoGrid({
                   isHost={track.participant.identity === hostIdentity}
                   isCoHost={coHostIdentities.includes(track.participant.identity)}
                   isHandRaised={raisedHandIdentities.includes(track.participant.identity)}
+                  customName={customNames[track.participant.identity]}
                   isPinned={false}
                   onTogglePin={() => setPinnedIdentity(track.participant.identity)}
                 />
@@ -108,6 +112,7 @@ export function VideoGrid({
             isHost={track.participant.identity === hostIdentity}
             isCoHost={coHostIdentities.includes(track.participant.identity)}
             isHandRaised={raisedHandIdentities.includes(track.participant.identity)}
+            customName={customNames[track.participant.identity]}
             isPinned={pinnedIdentity === track.participant.identity}
             onTogglePin={() =>
               setPinnedIdentity(

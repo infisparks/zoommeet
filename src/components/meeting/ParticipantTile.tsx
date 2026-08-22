@@ -18,6 +18,7 @@ interface ParticipantTileProps {
   isCoHost?: boolean;
   isHandRaised?: boolean;
   isPinned?: boolean;
+  customName?: string;
   onTogglePin?: () => void;
   className?: string;
 }
@@ -28,6 +29,7 @@ export function ParticipantTile({
   isCoHost = false,
   isHandRaised = false,
   isPinned = false,
+  customName,
   onTogglePin,
   className = "",
 }: ParticipantTileProps) {
@@ -36,6 +38,7 @@ export function ParticipantTile({
   const isAudioMuted = !trackRef?.participant?.isMicrophoneEnabled;
 
   const displayName =
+    customName ||
     trackRef?.participant?.name ||
     trackRef?.participant?.identity ||
     "Attendee";

@@ -42,7 +42,10 @@ export function PreJoin({
   passwordRequired = false,
   onJoin,
 }: PreJoinProps) {
-  const [displayName, setDisplayName] = useState(initialName || "Guest User");
+  const [displayName, setDisplayName] = useState(
+    initialName || (typeof window !== "undefined" ? sessionStorage.getItem("infiplus_guest_name") || "" : "")
+  );
+  const [nameError, setNameError] = useState<string | null>(null);
   const [enteredPassword, setEnteredPassword] = useState("");
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -188,14 +191,22 @@ export function PreJoin({
 
   const handleJoinClick = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!displayName.trim()) return;
+    const cleanName = displayName.trim();
+    if (!cleanName) {
+      setNameError("Please enter your name to join the conference.");
+      return;
+    }
+    setNameError(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("infiplus_guest_name", cleanName);
+    }
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
     }
 
     onJoin({
-      displayName: displayName.trim(),
+      displayName: cleanName,
       audioEnabled,
       videoEnabled,
       audioDeviceId: selectedAudioInput,
@@ -391,12 +402,22 @@ export function PreJoin({
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Alex Morgan"
+                    placeholder="Enter your full name..."
                     value={displayName}
-                    onChange={e => setDisplayName(e.target.value)}
+                    onChange={e => {
+                      setDisplayName(e.target.value);
+                      if (nameError) setNameError(null);
+                    }}
                     required
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className={`w-full rounded-lg border bg-slate-950 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 ${
+                      nameError
+                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500"
+                        : "border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                    }`}
                   />
+                  {nameError && (
+                    <p className="text-[11px] text-rose-400 font-medium">{nameError}</p>
+                  )}
                 </div>
 
                 {passwordRequired && (

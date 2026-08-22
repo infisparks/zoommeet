@@ -18,6 +18,8 @@ import {
   UserCheck,
   Sparkles,
   Lock,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { VirtualParticipant } from "@/lib/indianNames";
@@ -43,6 +45,7 @@ interface MeetingParticipantsProps {
   isCurrentUserHost?: boolean;
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;
+  onRenameSelf?: (newName: string) => void;
   onMuteParticipant?: (identity: string) => void;
   onMuteAll?: () => void;
   onLockAllVideo?: () => void;
@@ -76,6 +79,7 @@ export function MeetingParticipants({
   isCurrentUserHost = false,
   isVoiceLocked = false,
   isVideoLocked = false,
+  onRenameSelf,
   onMuteParticipant,
   onMuteAll,
   onLockAllVideo,
@@ -85,12 +89,13 @@ export function MeetingParticipants({
 }: MeetingParticipantsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
 
   if (!isOpen) return null;
 
   const totalAttendeesCount = participants.length + fakeParticipants.length;
 
-  // Filter both real and dummy participants under search
   const filteredReal = participants.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.identity.toLowerCase().includes(searchQuery.toLowerCase())
@@ -99,6 +104,13 @@ export function MeetingParticipants({
   const filteredFake = fakeParticipants.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleSaveRename = () => {
+    if (editNameValue.trim() && onRenameSelf) {
+      onRenameSelf(editNameValue.trim());
+      setIsRenaming(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 sm:inset-y-0 sm:left-auto sm:right-0 z-50 flex w-full sm:max-w-md flex-col border-l border-white/10 bg-[#0D1527]/98 backdrop-blur-2xl text-white shadow-2xl animate-in slide-in-from-right duration-200">
@@ -202,7 +214,7 @@ export function MeetingParticipants({
               key={p.identity}
               className="group relative flex items-center justify-between rounded-2xl p-2.5 bg-white/5 hover:bg-white/10 transition-all border border-white/5 hover:border-indigo-500/30 shadow-xs"
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
                 {/* Avatar with Speaking Glow */}
                 <div className="relative shrink-0">
                   <div
@@ -226,31 +238,81 @@ export function MeetingParticipants({
                   )}
                 </div>
 
-                {/* Name and Tags */}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="truncate text-xs font-bold text-slate-100">
-                      {p.name}
-                    </span>
-                    {p.isLocal && (
-                      <span className="text-[10px] text-indigo-300 font-semibold bg-indigo-500/20 px-1.5 py-0.2 rounded-md">
-                        You
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    {p.isHost ? (
-                      <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
-                        <Crown className="w-2.5 h-2.5" /> Host
-                      </span>
-                    ) : p.isCoHost ? (
-                      <span className="text-[10px] text-blue-400 font-semibold flex items-center gap-1">
-                        <Shield className="w-2.5 h-2.5" /> Co-Host
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-400">Attendee</span>
-                    )}
-                  </div>
+                {/* Name, In-place Rename & Tags */}
+                <div className="min-w-0 flex-1">
+                  {p.isLocal && isRenaming ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={editNameValue}
+                        onChange={e => setEditNameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleSaveRename();
+                          if (e.key === "Escape") setIsRenaming(false);
+                        }}
+                        autoFocus
+                        placeholder="Enter new name..."
+                        className="w-full rounded-lg bg-slate-950 border border-indigo-500 px-2 py-1 text-xs text-white focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveRename}
+                        className="p-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
+                        title="Save Name"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsRenaming(false)}
+                        className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="truncate text-xs font-bold text-slate-100">
+                          {p.name}
+                        </span>
+                        {p.isLocal && (
+                          <>
+                            <span className="text-[10px] text-indigo-300 font-semibold bg-indigo-500/20 px-1.5 py-0.2 rounded-md">
+                              You
+                            </span>
+                            {onRenameSelf && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditNameValue(p.name);
+                                  setIsRenaming(true);
+                                }}
+                                className="text-slate-400 hover:text-indigo-300 p-0.5 rounded cursor-pointer transition-colors"
+                                title="Edit your display name"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {p.isHost ? (
+                          <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
+                            <Crown className="w-2.5 h-2.5" /> Host
+                          </span>
+                        ) : p.isCoHost ? (
+                          <span className="text-[10px] text-blue-400 font-semibold flex items-center gap-1">
+                            <Shield className="w-2.5 h-2.5" /> Co-Host
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">Attendee</span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

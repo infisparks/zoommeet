@@ -119,6 +119,7 @@ function MeetingRoomInner({
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
   const [coHosts, setCoHosts] = useState<string[]>([]);
   const [waitingUsers, setWaitingUsers] = useState<WaitingUser[]>([]);
+  const [customNames, setCustomNames] = useState<Record<string, string>>({});
 
   // Meeting Duration Timer & Fullscreen/Auto-Hide Controls
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -333,6 +334,10 @@ function MeetingRoomInner({
             return prev.filter(id => id !== data.identity);
           }
         });
+      } else if (data.type === "rename_participant") {
+        if (data.identity && data.newName) {
+          setCustomNames(prev => ({ ...prev, [data.identity]: data.newName }));
+        }
       }
     } catch (e) {
       console.warn("Error decoding data channel packet", e);
@@ -589,10 +594,26 @@ function MeetingRoomInner({
     send(new TextEncoder().encode(payload), { reliable: true });
   };
 
+  const handleRenameSelf = (newName: string) => {
+    if (!localParticipant || !newName.trim()) return;
+    const clean = newName.trim();
+    setCustomNames(prev => ({ ...prev, [localParticipant.identity]: clean }));
+    localParticipant.setName(clean).catch(() => {});
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("infiplus_guest_name", clean);
+    }
+    const payload = JSON.stringify({
+      type: "rename_participant",
+      identity: localParticipant.identity,
+      newName: clean,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+  };
+
   // Build extended participant details for panel
   const extendedParticipants: ExtendedParticipantInfo[] = participants.map(p => ({
     identity: p.identity,
-    name: p.name || p.identity,
+    name: customNames[p.identity] || p.name || p.identity,
     isLocal: p.isLocal,
     isHost: isHost && p.isLocal,
     isCoHost: coHosts.includes(p.identity),
@@ -725,6 +746,7 @@ function MeetingRoomInner({
             hostIdentity={isHost ? localParticipant?.identity : undefined}
             coHostIdentities={coHosts}
             raisedHandIdentities={raisedHands}
+            customNames={customNames}
             isFocusView={isFocusView}
           />
         )}
@@ -784,6 +806,7 @@ function MeetingRoomInner({
         isCurrentUserHost={isHost}
         isVoiceLocked={voiceLocked}
         isVideoLocked={videoLocked}
+        onRenameSelf={handleRenameSelf}
         onMuteParticipant={handleMuteParticipant}
         onMuteAll={handleMuteAll}
         onLockAllVideo={handleLockAllVideo}
