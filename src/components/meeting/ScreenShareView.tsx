@@ -74,89 +74,9 @@ export function ScreenShareView({
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col gap-2 p-1.5 sm:p-4 overflow-hidden select-none font-[Poppins,sans-serif] min-h-0 min-w-0">
-      {/* Top Sharer Notification & Layout Control Banner */}
-      <div className="flex items-center justify-between gap-2 rounded-2xl bg-slate-900/95 border border-white/10 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm text-white backdrop-blur-xl shrink-0 shadow-lg">
-        <div className="flex items-center gap-2 min-w-0">
-          <Monitor className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-400 shrink-0" />
-          <span className="truncate text-xs sm:text-sm">
-            <strong className="text-white">{sharerName}</strong> is sharing screen
-          </span>
-
-          {/* +n others badge */}
-          {totalAudienceCount > 1 && (
-            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 px-2 py-0.5 text-[11px] font-bold text-indigo-200">
-              <Users className="w-3 h-3 text-indigo-300" />
-              <span>+{totalAudienceCount - 1} in call</span>
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Layout Mode Toggles - ONLY visible to Host */}
-          {isCurrentUserHost && (
-            <div className="flex items-center bg-black/40 rounded-xl p-0.5 border border-white/10">
-              <button
-                type="button"
-                onClick={() => setLayoutMode("screenOnly")}
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  layoutMode === "screenOnly"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
-                }`}
-                title="Screen Only (Hide Camera)"
-              >
-                <EyeOff className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Screen Only</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setLayoutMode("pip")}
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  layoutMode === "pip"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
-                }`}
-                title="Picture-in-Picture Floating Camera"
-              >
-                <PictureInPicture className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Floating PiP</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setLayoutMode("filmstrip")}
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  layoutMode === "filmstrip"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
-                }`}
-                title="Bottom Camera Filmstrip"
-              >
-                <Layout className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Filmstrip</span>
-              </button>
-            </div>
-          )}
-
-          {/* Stop Share button for presenter */}
-          {isLocalSharing && onStopShare && (
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={onStopShare}
-              className="h-7 sm:h-8 text-xs px-2 sm:px-3 shrink-0"
-            >
-              <StopCircle className="w-3.5 h-3.5 mr-1" />
-              <span>Stop Share</span>
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Main Screen Share Stage */}
-      <div className="relative flex-1 min-h-0 w-full rounded-2xl bg-black border-2 border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center">
+    <div className="relative flex h-full w-full flex-col p-0 sm:p-1 overflow-hidden select-none font-[Poppins,sans-serif] min-h-0 min-w-0">
+      {/* Main Screen Share Stage (Takes 100% full space) */}
+      <div className="relative flex-1 min-h-0 w-full rounded-xl sm:rounded-2xl bg-black border border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center">
         <video
           ref={videoRef}
           className={`h-full w-full object-contain ${isRealTrack ? "block" : "hidden"}`}
@@ -172,10 +92,90 @@ export function ScreenShareView({
           </div>
         )}
 
+        {/* Small Floating Sharer & Audience Info inside Screen (Top-Left) */}
+        <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 pointer-events-auto max-w-[85%]">
+          <div className="flex items-center gap-1.5 rounded-full bg-slate-950/85 border border-white/15 px-2.5 py-1 text-[11px] sm:text-xs text-white backdrop-blur-md shadow-lg">
+            <Monitor className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400 shrink-0" />
+            <span className="truncate">
+              <strong className="text-white font-semibold">{sharerName}</strong> is sharing
+            </span>
+          </div>
+
+          {totalAudienceCount > 1 && (
+            <div className="inline-flex items-center gap-1 rounded-full bg-indigo-950/85 border border-indigo-400/30 px-2 py-1 text-[10px] sm:text-[11px] font-bold text-indigo-200 backdrop-blur-md shadow-lg shrink-0">
+              <Users className="w-3 h-3 text-indigo-300" />
+              <span>+{totalAudienceCount - 1} in call</span>
+            </div>
+          )}
+        </div>
+
+        {/* Small Floating Host Controls inside Screen (Top-Right) */}
+        {(isCurrentUserHost || (isLocalSharing && onStopShare)) && (
+          <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5 pointer-events-auto">
+            {isCurrentUserHost && (
+              <div className="flex items-center bg-slate-950/85 rounded-xl p-0.5 border border-white/15 backdrop-blur-md shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("screenOnly")}
+                  className={`flex items-center gap-1 px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-all cursor-pointer ${
+                    layoutMode === "screenOnly"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title="Screen Only"
+                >
+                  <EyeOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span className="hidden sm:inline">Screen Only</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("pip")}
+                  className={`flex items-center gap-1 px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-all cursor-pointer ${
+                    layoutMode === "pip"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title="Floating PiP"
+                >
+                  <PictureInPicture className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span className="hidden sm:inline">PiP</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("filmstrip")}
+                  className={`flex items-center gap-1 px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-all cursor-pointer ${
+                    layoutMode === "filmstrip"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title="Filmstrip"
+                >
+                  <Layout className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span className="hidden sm:inline">Filmstrip</span>
+                </button>
+              </div>
+            )}
+
+            {isLocalSharing && onStopShare && (
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={onStopShare}
+                className="h-6 sm:h-7 text-[10px] sm:text-xs px-2 sm:px-2.5 shrink-0 shadow-lg"
+              >
+                <StopCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1" />
+                <span>Stop</span>
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Floating Presenter Face Camera (Picture-in-Picture Mode) */}
         {layoutMode === "pip" && pipCameraTrack && (
           <div
-            className={`absolute ${getPipPositionClass()} z-20 w-36 sm:w-60 md:w-72 aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-indigo-500/70 bg-[#0E1626] backdrop-blur-xl transition-all duration-200 group`}
+            className={`absolute ${getPipPositionClass()} z-20 w-32 sm:w-60 md:w-72 aspect-video rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-indigo-500/70 bg-[#0E1626] backdrop-blur-xl transition-all duration-200 group`}
           >
             <ParticipantTile
               trackRef={pipCameraTrack}
