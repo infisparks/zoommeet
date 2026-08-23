@@ -25,12 +25,15 @@ import {
   Headphones,
   Maximize,
   Minimize,
+  Lock,
 } from "lucide-react";
 import { AudioDeviceMenu } from "./AudioDeviceMenu";
 
 interface MeetingControlsProps {
   isMuted: boolean;
   isVideoMuted: boolean;
+  isMicLocked?: boolean;
+  isVideoLocked?: boolean;
   isScreenSharing: boolean;
   isHandRaised: boolean;
   isChatOpen: boolean;
@@ -63,6 +66,8 @@ const EMOJI_LIST = ["👍", "👏", "❤️", "🎉", "🔥", "😂", "✋", "�
 export function MeetingControls({
   isMuted,
   isVideoMuted,
+  isMicLocked = false,
+  isVideoLocked = false,
   isScreenSharing,
   isHandRaised,
   isChatOpen,
@@ -118,15 +123,26 @@ export function MeetingControls({
             <button
               type="button"
               onClick={onToggleMic}
-              className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-l-xl sm:rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
+              className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-l-xl sm:rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
                 isMuted
                   ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
                   : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
               }`}
-              title={isMuted ? "Unmute Mic" : "Mute Mic"}
+              title={
+                isMicLocked
+                  ? "Microphone locked by Host (Raise Hand to speak)"
+                  : isMuted
+                  ? "Unmute Mic"
+                  : "Mute Mic"
+              }
             >
+              {isMicLocked && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-sm" title="Locked by Host">
+                  <Lock className="w-2.5 h-2.5" />
+                </span>
+              )}
               {isMuted ? <MicOff className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" /> : <Mic className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-400" />}
-              <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isMuted ? "Unmute" : "Mute"}</span>
+              <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isMicLocked ? "Locked" : isMuted ? "Unmute" : "Mute"}</span>
             </button>
 
             {/* Audio Settings Chevron (Desktop & Tablet) */}
@@ -144,15 +160,26 @@ export function MeetingControls({
           <button
             type="button"
             onClick={onToggleVideo}
-            className={`flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
+            className={`relative flex flex-col items-center justify-center h-11 w-11 sm:h-13 sm:w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer shrink-0 touch-manipulation select-none ${
               isVideoMuted
                 ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30"
                 : "bg-slate-800/90 hover:bg-slate-700 text-slate-100"
             }`}
-            title={isVideoMuted ? "Start Camera" : "Stop Camera"}
+            title={
+              isVideoLocked
+                ? "Camera locked by Host"
+                : isVideoMuted
+                ? "Start Camera"
+                : "Stop Camera"
+            }
           >
+            {isVideoLocked && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-sm" title="Locked by Host">
+                <Lock className="w-2.5 h-2.5" />
+              </span>
+            )}
             {isVideoMuted ? <VideoOff className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" /> : <VideoIcon className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-indigo-400" />}
-            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isVideoMuted ? "Start" : "Stop"}</span>
+            <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isVideoLocked ? "Locked" : isVideoMuted ? "Start" : "Stop"}</span>
           </button>
 
           {/* 3. Screen Share (Desktop Only) */}

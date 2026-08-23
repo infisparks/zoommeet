@@ -144,6 +144,8 @@ function MeetingRoomInner({
   const [reactions, setReactions] = useState<ReactionItem[]>([]);
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
   const [coHosts, setCoHosts] = useState<string[]>([]);
+  const [allowedMicUsers, setAllowedMicUsers] = useState<string[]>([]);
+  const [allowedVideoUsers, setAllowedVideoUsers] = useState<string[]>([]);
   const [waitingUsers, setWaitingUsers] = useState<WaitingUser[]>([]);
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
 
@@ -165,47 +167,100 @@ function MeetingRoomInner({
     }, 3500);
   }, []);
 
+  const requestFullscreenPolyfill = async (el: HTMLElement) => {
+    try {
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if ((el as any).webkitRequestFullscreen) {
+        await (el as any).webkitRequestFullscreen();
+      } else if ((el as any).mozRequestFullScreen) {
+        await (el as any).mozRequestFullScreen();
+      } else if ((el as any).msRequestFullscreen) {
+        await (el as any).msRequestFullscreen();
+      }
+    } catch (err) {
+      console.warn("Fullscreen polyfill notice:", err);
+    }
+  };
+
+  const exitFullscreenPolyfill = async () => {
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        await (document as any).webkitExitFullscreen();
+      } else if ((document as any).mozCancelFullScreen) {
+        await (document as any).mozCancelFullScreen();
+      } else if ((document as any).msExitFullscreen) {
+        await (document as any).msExitFullscreen();
+      }
+    } catch (err) {
+      console.warn("Exit fullscreen polyfill notice:", err);
+    }
+  };
+
   useEffect(() => {
     resetControlsTimeout();
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(
+        Boolean(
+          document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement ||
+          (document as any).msFullscreenElement
+        )
+      );
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
     return () => {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
     };
   }, [resetControlsTimeout]);
 
-  // Auto-detect mobile landscape orientation: auto-hide UI to maximize video/screen share
+  // Auto-detect mobile landscape orientation: auto-fullscreen & auto-hide UI to maximize video/screen share
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleOrientation = () => {
       const isLandscape = window.innerWidth > window.innerHeight;
-      if (isLandscape) {
+      const isMobile = window.innerWidth < 1024 || ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+
+      if (isLandscape && isMobile) {
         setShowControls(false);
-        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen().catch(() => {});
+        setIsFullscreen(true);
+        if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+          requestFullscreenPolyfill(document.documentElement).catch(() => {});
         }
+      } else if (!isLandscape && isMobile && !document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        setIsFullscreen(false);
       }
     };
 
     window.addEventListener("orientationchange", handleOrientation);
     window.addEventListener("resize", handleOrientation);
+    if (screen?.orientation) {
+      screen.orientation.addEventListener?.("change", handleOrientation);
+    }
+
+    handleOrientation();
 
     return () => {
       window.removeEventListener("orientationchange", handleOrientation);
       window.removeEventListener("resize", handleOrientation);
+      if (screen?.orientation) {
+        screen.orientation.removeEventListener?.("change", handleOrientation);
+      }
     };
   }, []);
 
   const toggleFullscreen = async () => {
     try {
-      if (!document.fullscreenElement) {
-        if (document.documentElement.requestFullscreen) {
-          await document.documentElement.requestFullscreen();
-        }
+      const currentlyFull = isFullscreen || !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+      if (!currentlyFull) {
+        await requestFullscreenPolyfill(document.documentElement);
         setIsFullscreen(true);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (screen.orientation && "lock" in screen.orientation) {
@@ -213,13 +268,17 @@ function MeetingRoomInner({
           (screen.orientation as any).lock("landscape").catch(() => {});
         }
       } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        }
+        await exitFullscreenPolyfill();
         setIsFullscreen(false);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (screen.orientation && "unlock" in screen.orientation) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (screen.orientation as any).unlock?.().catch(() => {});
+        }
       }
     } catch (err) {
       console.warn("Fullscreen toggle notice:", err);
+      setIsFullscreen(prev => !prev);
     }
   };
 
@@ -380,6 +439,34 @@ function MeetingRoomInner({
             return prev.filter(id => id !== data.identity);
           }
         });
+      } else if (data.type === "user_mic_permission_toggle") {
+        if (data.identity) {
+          setAllowedMicUsers(prev =>
+            data.allowed ? (prev.includes(data.identity) ? prev : [...prev, data.identity]) : prev.filter(id => id !== data.identity)
+          );
+          if (localParticipant && localParticipant.identity === data.identity) {
+            if (data.allowed) {
+              alert("🎉 The host has granted you microphone permission. You can now unmute to speak.");
+            } else {
+              alert("🎙️ Your microphone permission has been revoked by the host.");
+              localParticipant.setMicrophoneEnabled(false).catch(() => {});
+            }
+          }
+        }
+      } else if (data.type === "user_video_permission_toggle") {
+        if (data.identity) {
+          setAllowedVideoUsers(prev =>
+            data.allowed ? (prev.includes(data.identity) ? prev : [...prev, data.identity]) : prev.filter(id => id !== data.identity)
+          );
+          if (localParticipant && localParticipant.identity === data.identity) {
+            if (data.allowed) {
+              alert("🎉 The host has granted you camera permission. You can now turn on your camera.");
+            } else {
+              alert("📹 Your camera permission has been revoked by the host.");
+              localParticipant.setCameraEnabled(false).catch(() => {});
+            }
+          }
+        }
       } else if (data.type === "rename_participant") {
         if (data.identity && data.newName) {
           setCustomNames(prev => ({ ...prev, [data.identity]: data.newName }));
@@ -433,8 +520,9 @@ function MeetingRoomInner({
   const handleToggleMic = async () => {
     if (!localParticipant) return;
     const isCoHost = coHosts.includes(localParticipant.identity);
-    if (voiceLocked && !isHost && !isCoHost) {
-      alert("🎙️ Voice is locked by the host for this webinar.");
+    const hasMicPermission = isHost || isCoHost || allowedMicUsers.includes(localParticipant.identity);
+    if (voiceLocked && !hasMicPermission) {
+      alert("🎙️ Microphone is locked by the host for this webinar. Raise your hand to request speaking permission.");
       return;
     }
 
@@ -477,7 +565,8 @@ function MeetingRoomInner({
   const handleToggleVideo = async () => {
     if (!localParticipant || isCameraTransitioning) return;
     const isCoHost = coHosts.includes(localParticipant.identity);
-    if (videoLocked && !isHost && !isCoHost) {
+    const hasVideoPermission = isHost || isCoHost || allowedVideoUsers.includes(localParticipant.identity);
+    if (videoLocked && !hasVideoPermission) {
       alert("📹 Video is locked by the host for this webinar.");
       return;
     }
@@ -553,7 +642,8 @@ function MeetingRoomInner({
   const handleToggleScreenShare = async () => {
     if (!localParticipant) return;
     const isCoHost = coHosts.includes(localParticipant.identity);
-    if (videoLocked && !isHost && !isCoHost) {
+    const hasVideoPermission = isHost || isCoHost || allowedVideoUsers.includes(localParticipant.identity);
+    if (videoLocked && !hasVideoPermission) {
       alert("📹 Screen sharing is locked by the host for this webinar.");
       return;
     }
@@ -700,6 +790,40 @@ function MeetingRoomInner({
     send(new TextEncoder().encode(payload), { reliable: true });
   };
 
+  const handleToggleMicPermission = (targetIdentity: string, allow: boolean) => {
+    setAllowedMicUsers(prev =>
+      allow ? (prev.includes(targetIdentity) ? prev : [...prev, targetIdentity]) : prev.filter(id => id !== targetIdentity)
+    );
+    const payload = JSON.stringify({
+      type: "user_mic_permission_toggle",
+      identity: targetIdentity,
+      allowed: allow,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+
+    if (!allow) {
+      const mutePayload = JSON.stringify({ type: "force_mute", targetIdentity });
+      send(new TextEncoder().encode(mutePayload), { reliable: true });
+    }
+  };
+
+  const handleToggleVideoPermission = (targetIdentity: string, allow: boolean) => {
+    setAllowedVideoUsers(prev =>
+      allow ? (prev.includes(targetIdentity) ? prev : [...prev, targetIdentity]) : prev.filter(id => id !== targetIdentity)
+    );
+    const payload = JSON.stringify({
+      type: "user_video_permission_toggle",
+      identity: targetIdentity,
+      allowed: allow,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+
+    if (!allow) {
+      const lockPayload = JSON.stringify({ type: "force_lock_video" });
+      send(new TextEncoder().encode(lockPayload), { reliable: true });
+    }
+  };
+
   const handleApplyBooster = () => {
     setFuserCount(tempBoosterCount);
     setFakeUsers(generateFUsers(tempBoosterCount, roomName));
@@ -791,12 +915,20 @@ function MeetingRoomInner({
     isAudioEnabled: p.isMicrophoneEnabled,
     isVideoEnabled: p.isCameraEnabled,
     isHandRaised: raisedHands.includes(p.identity),
+    hasMicPermission: isHost || coHosts.includes(p.identity) || allowedMicUsers.includes(p.identity) || !voiceLocked,
+    hasVideoPermission: isHost || coHosts.includes(p.identity) || allowedVideoUsers.includes(p.identity) || !videoLocked,
     livekitParticipant: p,
   }));
 
   const isLocalHandRaised = localParticipant
     ? raisedHands.includes(localParticipant.identity)
     : false;
+
+  const isCoHost = localParticipant ? coHosts.includes(localParticipant.identity) : false;
+  const hasLocalMicPermission = isHost || isCoHost || (localParticipant ? allowedMicUsers.includes(localParticipant.identity) : false);
+  const hasLocalVideoPermission = isHost || isCoHost || (localParticipant ? allowedVideoUsers.includes(localParticipant.identity) : false);
+  const isMicLockedForUser = voiceLocked && !hasLocalMicPermission;
+  const isVideoLockedForUser = videoLocked && !hasLocalVideoPermission;
 
   const totalConnectedCount = participants.length + fakeUsers.length;
 
@@ -807,7 +939,7 @@ function MeetingRoomInner({
       || localParticipant?.identity);
 
   return (
-    <div className="relative flex h-[100dvh] w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif]">
+    <div className={`relative flex h-[100dvh] w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif] ${isFullscreen ? "fixed inset-0 z-50 h-screen w-screen" : ""}`}>
       {/* Audio Renderer for remote audio tracks */}
       <RoomAudioRenderer />
 
@@ -914,6 +1046,7 @@ function MeetingRoomInner({
             screenTrack={screenShareTrack}
             cameraTracks={allParticipantTiles}
             hostIdentity={actualHostIdentity}
+            isCurrentUserHost={isHost}
             isLocalSharing={isLocalScreenSharing}
             totalAudienceCount={totalConnectedCount}
             onStopShare={handleToggleScreenShare}
@@ -939,6 +1072,8 @@ function MeetingRoomInner({
       <MeetingControls
         isMuted={!localParticipant?.isMicrophoneEnabled}
         isVideoMuted={!localParticipant?.isCameraEnabled}
+        isMicLocked={isMicLockedForUser}
+        isVideoLocked={isVideoLockedForUser}
         isScreenSharing={!!localParticipant?.isScreenShareEnabled}
         isHandRaised={isLocalHandRaised}
         isChatOpen={isChatOpen}
@@ -991,6 +1126,8 @@ function MeetingRoomInner({
         onMuteAll={handleMuteAll}
         onLockAllVideo={handleLockAllVideo}
         onMakeCoHost={handleMakeCoHost}
+        onToggleMicPermission={handleToggleMicPermission}
+        onToggleVideoPermission={handleToggleVideoPermission}
         onLowerHand={id => setRaisedHands(prev => prev.filter(x => x !== id))}
       />
 

@@ -34,6 +34,8 @@ export interface ExtendedParticipantInfo {
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isHandRaised?: boolean;
+  hasMicPermission?: boolean;
+  hasVideoPermission?: boolean;
   livekitParticipant?: Participant;
 }
 
@@ -50,6 +52,8 @@ interface MeetingParticipantsProps {
   onMuteAll?: () => void;
   onLockAllVideo?: () => void;
   onMakeCoHost?: (identity: string) => void;
+  onToggleMicPermission?: (identity: string, allow: boolean) => void;
+  onToggleVideoPermission?: (identity: string, allow: boolean) => void;
   onLowerHand?: (identity: string) => void;
   onOpenBoosterConfig?: () => void;
 }
@@ -84,6 +88,8 @@ export function MeetingParticipants({
   onMuteAll,
   onLockAllVideo,
   onMakeCoHost,
+  onToggleMicPermission,
+  onToggleVideoPermission,
   onLowerHand,
   onOpenBoosterConfig,
 }: MeetingParticipantsProps) {
@@ -348,7 +354,63 @@ export function MeetingParticipants({
                     </button>
 
                     {activeMenuId === p.identity && (
-                      <div className="absolute right-0 top-8 z-30 w-44 rounded-xl border border-white/15 bg-[#0A101E]/98 p-1.5 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="absolute right-0 top-8 z-30 w-48 rounded-xl border border-white/15 bg-[#0A101E]/98 p-1.5 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 duration-100">
+                        {/* Mic Permission Toggle */}
+                        {onToggleMicPermission && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onToggleMicPermission(p.identity, !p.hasMicPermission);
+                              setActiveMenuId(null);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 text-xs rounded-lg cursor-pointer flex items-center gap-2 font-medium ${
+                              p.hasMicPermission
+                                ? "text-rose-300 hover:bg-rose-950/50"
+                                : "text-emerald-300 hover:bg-emerald-950/50"
+                            }`}
+                          >
+                            {p.hasMicPermission ? (
+                              <>
+                                <MicOff className="w-3.5 h-3.5 text-rose-400" />
+                                <span>Lock Mic / Revoke</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mic className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Allow / Unlock Mic</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {/* Video Permission Toggle */}
+                        {onToggleVideoPermission && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onToggleVideoPermission(p.identity, !p.hasVideoPermission);
+                              setActiveMenuId(null);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 text-xs rounded-lg cursor-pointer flex items-center gap-2 font-medium ${
+                              p.hasVideoPermission
+                                ? "text-rose-300 hover:bg-rose-950/50"
+                                : "text-indigo-300 hover:bg-indigo-950/50"
+                            }`}
+                          >
+                            {p.hasVideoPermission ? (
+                              <>
+                                <VideoOff className="w-3.5 h-3.5 text-rose-400" />
+                                <span>Lock Video / Revoke</span>
+                              </>
+                            ) : (
+                              <>
+                                <VideoIcon className="w-3.5 h-3.5 text-indigo-400" />
+                                <span>Allow / Unlock Video</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
                         {onMakeCoHost && (
                           <button
                             type="button"
