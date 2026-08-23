@@ -74,7 +74,7 @@ export function ScreenShareView({
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col gap-2 p-1.5 sm:p-4 overflow-hidden select-none font-[Poppins,sans-serif]">
+    <div className="relative flex h-full w-full flex-col gap-2 p-1.5 sm:p-4 overflow-hidden select-none font-[Poppins,sans-serif] min-h-0 min-w-0">
       {/* Top Sharer Notification & Layout Control Banner */}
       <div className="flex items-center justify-between gap-2 rounded-2xl bg-slate-900/95 border border-white/10 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm text-white backdrop-blur-xl shrink-0 shadow-lg">
         <div className="flex items-center gap-2 min-w-0">

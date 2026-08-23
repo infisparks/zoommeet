@@ -59,7 +59,7 @@ export function VideoGrid({
     const otherTracks = activeTracks.filter(t => t.participant.identity !== focusTrack.participant.identity);
 
     return (
-      <div className="relative flex h-full w-full flex-col gap-3 p-2 sm:p-4">
+      <div className="relative flex h-full w-full flex-col gap-3 p-1.5 sm:p-4 min-h-0 min-w-0 overflow-hidden">
         {/* Main Stage */}
         <div className="flex-1 min-h-0 w-full relative">
           <ParticipantTile
@@ -132,7 +132,7 @@ export function VideoGrid({
   }
 
   return (
-    <div className={`relative grid h-full w-full gap-3 sm:gap-4 p-2 sm:p-4 ${gridColsClass} ${gridRowsClass} auto-rows-fr`}>
+    <div className={`relative grid h-full w-full gap-2 sm:gap-4 p-1.5 sm:p-4 ${gridColsClass} ${gridRowsClass} auto-rows-fr min-h-0 min-w-0 overflow-hidden`}>
       {activeTracks.map(track => (
         <div key={track.participant.identity + track.source} className="h-full w-full min-h-0 min-w-0">
           <ParticipantTile

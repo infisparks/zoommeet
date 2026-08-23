@@ -167,6 +167,27 @@ function MeetingRoomInner({
     }, 3500);
   }, []);
 
+  // Lock body/html scroll on mount to prevent any unwanted scrolling in meeting room / fullscreen
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const origBodyOverflow = document.body.style.overflow;
+    const origHtmlOverflow = document.documentElement.style.overflow;
+    const origBodyOverscroll = document.body.style.overscrollBehavior;
+    const origHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+    document.documentElement.style.overscrollBehavior = "none";
+
+    return () => {
+      document.body.style.overflow = origBodyOverflow;
+      document.documentElement.style.overflow = origHtmlOverflow;
+      document.body.style.overscrollBehavior = origBodyOverscroll;
+      document.documentElement.style.overscrollBehavior = origHtmlOverscroll;
+    };
+  }, []);
+
   const requestFullscreenPolyfill = async (el: HTMLElement) => {
     try {
       if (el.requestFullscreen) {
@@ -939,7 +960,20 @@ function MeetingRoomInner({
       || localParticipant?.identity);
 
   return (
-    <div className={`relative flex h-[100dvh] w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif] ${isFullscreen ? "fixed inset-0 z-50 h-screen w-screen" : ""}`}>
+    <div
+      className="fixed inset-0 z-40 flex h-full w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif] overscroll-none touch-manipulation"
+      style={{
+        height: "100dvh",
+        width: "100dvw",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflow: "hidden",
+        overscrollBehavior: "none",
+      }}
+    >
       {/* Audio Renderer for remote audio tracks */}
       <RoomAudioRenderer />
 
@@ -1039,7 +1073,7 @@ function MeetingRoomInner({
             setShowControls(false);
           }
         }}
-        className="relative flex-1 w-full h-full p-1 sm:p-2 cursor-pointer"
+        className="relative flex-1 min-h-0 min-w-0 w-full h-full p-1 sm:p-2 cursor-pointer overflow-hidden flex flex-col"
       >
         {screenShareTrack ? (
           <ScreenShareView
