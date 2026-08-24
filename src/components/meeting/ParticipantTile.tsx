@@ -58,15 +58,6 @@ export function ParticipantTile({
     const el = videoRef.current;
     if (el && track) {
       track.attach(el);
-      try {
-        if ("autoPictureInPicture" in el || "autoPictureInPicture" in HTMLVideoElement.prototype) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (el as any).autoPictureInPicture = true;
-        }
-        el.setAttribute("autopictureinpicture", "");
-      } catch (e) {
-        console.warn("autoPictureInPicture attribute notice:", e);
-      }
       return () => {
         track.detach(el);
       };
@@ -89,8 +80,6 @@ export function ParticipantTile({
           autoPlay
           playsInline
           muted={isLocal}
-          // @ts-expect-error autopictureinpicture is standard in Chromium
-          autopictureinpicture=""
         />
       </div>
 
