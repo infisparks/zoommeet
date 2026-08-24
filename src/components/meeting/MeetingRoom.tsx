@@ -57,6 +57,8 @@ import {
   VolumeX,
   MessageSquare,
   Unlock,
+  PictureInPicture,
+  PhoneOff,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
@@ -127,6 +129,7 @@ function MeetingRoomInner({
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [permissionMediaType, setPermissionMediaType] = useState<"camera" | "microphone" | "both">("both");
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   // Social Proof Booster (fuser) & Webinar Lock State
   const [fuserCount, setFuserCount] = useState(fakeUserCount || 200);
@@ -270,11 +273,10 @@ function MeetingRoomInner({
     }
   }, []);
 
-  // Intercept Browser Back button: trigger browser default PiP window on back click
+  // Intercept Browser Back button: show option to leave or open Chrome PiP popup window
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Push state so back button doesn't leave the page immediately
     try {
       window.history.pushState({ meetingActive: true }, "", window.location.href);
     } catch {
@@ -282,8 +284,7 @@ function MeetingRoomInner({
     }
 
     const handlePopState = () => {
-      // Trigger default Chrome PiP popup window showing the meeting
-      openBrowserDefaultPiP();
+      setShowExitModal(true);
       try {
         window.history.pushState({ meetingActive: true }, "", window.location.href);
       } catch {
@@ -295,7 +296,7 @@ function MeetingRoomInner({
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [openBrowserDefaultPiP]);
+  }, []);
 
   // Trigger default Chrome PiP window when clicking middle home button, switching tabs/apps, or minimizing browser
   useEffect(() => {
@@ -1335,7 +1336,7 @@ function MeetingRoomInner({
         onToggleParticipants={() => setIsParticipantsOpen(!isParticipantsOpen)}
         onToggleViewMode={() => setIsFocusView(!isFocusView)}
         onSendReaction={handleSendReaction}
-        onLeaveMeeting={onLeave}
+        onLeaveMeeting={() => setShowExitModal(true)}
         onEndMeetingForAll={isHost ? handleEndMeetingForAll : undefined}
         onCopyLink={handleCopyMeetingLink}
         isRecording={isRecording}
@@ -1544,6 +1545,72 @@ function MeetingRoomInner({
           </div>
         </Modal>
       )}
+
+      {/* 🚀 Exit or Show in Popup Window Modal */}
+      <Modal
+        isOpen={showExitModal}
+        onClose={() => setShowExitModal(false)}
+        title="Leave Meeting or Show in Popup?"
+        description="Choose how you would like to proceed with this meeting."
+        maxWidth="md"
+      >
+        <div className="space-y-4 pt-2 font-[Poppins,sans-serif]">
+          <p className="text-xs sm:text-sm text-slate-600">
+            You can keep watching and listening to the meeting in Chrome&apos;s floating Picture-in-Picture window, or leave the meeting.
+          </p>
+
+          <div className="flex flex-col gap-2.5">
+            {/* Primary Action: Open Chrome Native Picture-in-Picture on User Click */}
+            <button
+              type="button"
+              onClick={async () => {
+                setShowExitModal(false);
+                await openBrowserDefaultPiP();
+              }}
+              className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 p-3.5 text-xs sm:text-sm font-bold text-white shadow-lg transition active:scale-98 cursor-pointer"
+            >
+              <PictureInPicture className="w-4.5 h-4.5" />
+              <span>Show in Chrome Popup Window (PiP)</span>
+            </button>
+
+            {/* Leave Room Action */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowExitModal(false);
+                onLeave();
+              }}
+              className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs sm:text-sm font-bold text-rose-600 hover:bg-rose-100 transition active:scale-98 cursor-pointer"
+            >
+              <PhoneOff className="w-4 h-4" />
+              <span>Leave Meeting</span>
+            </button>
+
+            {/* End Meeting for All (if host) */}
+            {isHost && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExitModal(false);
+                  handleEndMeetingForAll();
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 p-2.5 text-xs font-bold text-white transition active:scale-98 cursor-pointer"
+              >
+                <span>End Meeting for All</span>
+              </button>
+            )}
+
+            {/* Cancel & Stay */}
+            <button
+              type="button"
+              onClick={() => setShowExitModal(false)}
+              className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-700 cursor-pointer"
+            >
+              Cancel & Stay in Meeting
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Mobile Permission Modal */}
       <PermissionModal
