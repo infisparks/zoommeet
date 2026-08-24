@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: res.user.email,
           role: (res.user.role as "admin" | "host" | "user") || "host",
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(res.user.name || email)}`,
-          company: "Infiplus Workspace",
+          company: "First Option Agency",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };

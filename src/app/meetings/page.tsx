@@ -118,7 +118,7 @@ export default function MeetingsPage() {
                   title: "Instant LiveKit Meeting",
                   hostId: "user-1",
                   hostName: "Alex Morgan",
-                  hostEmail: "alex@infiplus.in",
+                  hostEmail: "alex@firstoptionagency.com",
                 });
                 router.push(`/meeting/${meeting.meetingId}`);
               }}

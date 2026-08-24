@@ -38,7 +38,7 @@ export function WaitingRoomAttendeeView({
             Waiting Room Active
           </span>
           <h2 className="text-xl font-bold text-white mt-1">
-            {meetingTitle || "Infiplus Conference"}
+            {meetingTitle || `${branding.appName} Conference`}
           </h2>
           <p className="text-xs text-slate-400 mt-2 leading-relaxed">
             Please wait, the meeting host (<span className="text-slate-200 font-semibold">{hostName}</span>) will let you in shortly.

@@ -7,19 +7,19 @@ const DEFAULT_USERS: StoredUser[] = [
   {
     id: "user-demo-1",
     name: "Alex Morgan",
-    email: "alex@infiplus.in",
+    email: "alex@firstoptionagency.com",
     passwordHash: "password123",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    company: "Infiplus Tech",
+    company: "First Option Agency",
     createdAt: new Date().toISOString(),
   },
   {
     id: "user-demo-2",
     name: "David Chen",
-    email: "david@infiplus.in",
+    email: "david@firstoptionagency.com",
     passwordHash: "password123",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    company: "Infiplus Tech",
+    company: "First Option Agency",
     createdAt: new Date().toISOString(),
   }
 ];

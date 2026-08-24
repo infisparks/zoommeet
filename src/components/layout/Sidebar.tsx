@@ -108,7 +108,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <span>LiveKit Cloud Engine</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Ultra-low latency SFU connected at <code className="text-xs font-mono font-bold text-indigo-900">live.infiplus.in</code>
+                Ultra-low latency SFU connected &amp; ready for HD meetings.
               </p>
             </div>
           </div>
@@ -129,7 +129,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {user?.name || "Alex Morgan"}
                 </p>
                 <p className="truncate text-xs text-slate-400 font-medium">
-                  {user?.email || "alex@infiplus.in"}
+                  {user?.email || "alex@firstoptionagency.com"}
                 </p>
               </div>
             </div>

@@ -66,7 +66,7 @@ export default function LoginPage() {
               <Input
                 label="Email Address *"
                 type="email"
-                placeholder="Enter email (e.g. admin@infiplus.in)"
+                placeholder="Enter email (e.g. admin@firstoptionagency.com)"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -103,7 +103,7 @@ export default function LoginPage() {
           {/* Secure Firebase Connection Badge */}
           <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-slate-50 border border-slate-100 py-2.5 px-3 text-[11px] text-slate-500">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Connected to Firebase Database (meets.infiplus.in)</span>
+            <span>Connected to Firebase Database ({branding.appName} Cloud)</span>
           </div>
         </div>
 

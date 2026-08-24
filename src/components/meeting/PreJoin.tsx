@@ -402,7 +402,7 @@ export function PreJoin({
                   Ready to Connect
                 </span>
                 <h2 className="text-lg font-bold text-white tracking-tight mt-0.5">
-                  {meetingTitle || "Infiplus Conference"}
+                  {meetingTitle || `${branding.appName} Conference`}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Enter your name to enter the conference room.

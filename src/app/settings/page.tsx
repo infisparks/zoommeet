@@ -163,7 +163,7 @@ export default function SettingsPage() {
                     label="Company / Organization"
                     value={company}
                     onChange={e => setCompany(e.target.value)}
-                    placeholder="e.g. Infiplus Tech"
+                    placeholder="e.g. First Option Agency"
                   />
 
                   <div className="space-y-1.5">

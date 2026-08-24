@@ -264,7 +264,7 @@ export default function ContactsPage() {
           <Input
             label="Email Address *"
             type="email"
-            placeholder="e.g. sarah@infiplus.in"
+            placeholder="e.g. sarah@firstoptionagency.com"
             value={email}
             onChange={e => setEmail(e.target.value)}
             required

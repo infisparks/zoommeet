@@ -211,7 +211,7 @@ export default function DashboardPage() {
                 Firebase Realtime Database Meetings
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                Active & scheduled meetings saved on meets.infiplus.in
+                Active & scheduled meetings saved on First Option Agency Cloud
               </p>
             </div>
           </div>
