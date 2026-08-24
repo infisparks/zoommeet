@@ -28,6 +28,7 @@ import { MeetingControls } from "./MeetingControls";
 import { MeetingChat } from "./MeetingChat";
 import { MeetingParticipants, ExtendedParticipantInfo } from "./MeetingParticipants";
 import { ReactionsOverlay } from "./ReactionsOverlay";
+import { CommentPopupOverlay, CommentPopupItem } from "./CommentPopupOverlay";
 import { HostWaitingRoomBanner, WaitingUser } from "./WaitingRoom";
 import { ChatMessage, ReactionItem } from "@/types";
 import { chatService } from "@/lib/services";
@@ -54,6 +55,7 @@ import {
   Sliders,
   Crown,
   VolumeX,
+  MessageSquare,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
@@ -78,6 +80,7 @@ interface MeetingRoomProps {
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;
   onlyShowHost?: boolean;
+  showCommentPopup?: boolean;
   onLeave: () => void;
 }
 
@@ -91,6 +94,7 @@ function MeetingRoomInner({
   isVoiceLocked = false,
   isVideoLocked = false,
   onlyShowHost = true,
+  showCommentPopup = false,
   onLeave,
 }: {
   roomName: string;
@@ -102,6 +106,7 @@ function MeetingRoomInner({
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;
   onlyShowHost?: boolean;
+  showCommentPopup?: boolean;
   onLeave: () => void;
 }) {
   const connectionState = useConnectionState();
@@ -127,6 +132,7 @@ function MeetingRoomInner({
   const [voiceLocked, setVoiceLocked] = useState(!!isVoiceLocked);
   const [videoLocked, setVideoLocked] = useState(!!isVideoLocked);
   const [onlyShowHostState, setOnlyShowHostState] = useState(onlyShowHost ?? true);
+  const [showCommentPopupState, setShowCommentPopupState] = useState(showCommentPopup ?? false);
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   const [tempBoosterCount, setTempBoosterCount] = useState(fakeUserCount || 200);
 
@@ -135,11 +141,13 @@ function MeetingRoomInner({
   const [adminVoiceLock, setAdminVoiceLock] = useState(!!isVoiceLocked);
   const [adminVideoLock, setAdminVideoLock] = useState(!!isVideoLocked);
   const [adminOnlyShowHost, setAdminOnlyShowHost] = useState(onlyShowHost ?? true);
+  const [adminShowCommentPopup, setAdminShowCommentPopup] = useState(showCommentPopup ?? false);
   const [adminBoosterCount, setAdminBoosterCount] = useState(fakeUserCount || 200);
   const [isCameraTransitioning, setIsCameraTransitioning] = useState(false);
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [commentPopups, setCommentPopups] = useState<CommentPopupItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [reactions, setReactions] = useState<ReactionItem[]>([]);
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
@@ -148,6 +156,24 @@ function MeetingRoomInner({
   const [allowedVideoUsers, setAllowedVideoUsers] = useState<string[]>([]);
   const [waitingUsers, setWaitingUsers] = useState<WaitingUser[]>([]);
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
+
+  // Trigger 2-second Comment Popup on Screen when enabled
+  const triggerCommentPopup = useCallback((senderName: string, message: string) => {
+    if (!showCommentPopupState) return;
+    const id = `popup-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const newItem: CommentPopupItem = {
+      id,
+      senderName,
+      message,
+      timestamp: Date.now(),
+    };
+    setCommentPopups(prev => [...prev.slice(-2), newItem]);
+
+    // Automatically hide after exactly 2 seconds
+    setTimeout(() => {
+      setCommentPopups(prev => prev.filter(p => p.id !== id));
+    }, 2000);
+  }, [showCommentPopupState]);
 
   // Meeting Duration Timer & Fullscreen/Auto-Hide Controls
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -391,6 +417,7 @@ function MeetingRoomInner({
         if (!isChatOpen) {
           setUnreadCount(prev => prev + 1);
         }
+        triggerCommentPopup(data.participantName, data.message);
       } else if (data.type === "reaction") {
         const newReaction: ReactionItem = {
           id: `rx-${Date.now()}-${Math.random()}`,
@@ -439,6 +466,9 @@ function MeetingRoomInner({
         }
         if (typeof data.onlyShowHost === "boolean") {
           setOnlyShowHostState(data.onlyShowHost);
+        }
+        if (typeof data.showCommentPopup === "boolean") {
+          setShowCommentPopupState(data.showCommentPopup);
         }
         if (typeof data.fuserCount === "number") {
           setFuserCount(data.fuserCount);
@@ -757,6 +787,7 @@ function MeetingRoomInner({
 
     setMessages(prev => [...prev, newMsg]);
     chatService.saveMessage(newMsg);
+    triggerCommentPopup(senderName, text);
 
     const payload = JSON.stringify({
       type: "chat",
@@ -858,6 +889,7 @@ function MeetingRoomInner({
     setAdminVoiceLock(voiceLocked);
     setAdminVideoLock(videoLocked);
     setAdminOnlyShowHost(onlyShowHostState);
+    setAdminShowCommentPopup(showCommentPopupState);
     setAdminBoosterCount(fuserCount);
     setShowAdminModal(true);
   };
@@ -866,6 +898,7 @@ function MeetingRoomInner({
     setVoiceLocked(adminVoiceLock);
     setVideoLocked(adminVideoLock);
     setOnlyShowHostState(adminOnlyShowHost);
+    setShowCommentPopupState(adminShowCommentPopup);
     setFuserCount(adminBoosterCount);
     setFakeUsers(generateFUsers(adminBoosterCount, roomName));
     setShowAdminModal(false);
@@ -884,6 +917,7 @@ function MeetingRoomInner({
       voiceLocked: adminVoiceLock,
       videoLocked: adminVideoLock,
       onlyShowHost: adminOnlyShowHost,
+      showCommentPopup: adminShowCommentPopup,
       fuserCount: adminBoosterCount,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
@@ -894,6 +928,7 @@ function MeetingRoomInner({
         isVoiceLocked: adminVoiceLock,
         isVideoLocked: adminVideoLock,
         onlyShowHost: adminOnlyShowHost,
+        showCommentPopup: adminShowCommentPopup,
         fakeUserCount: adminBoosterCount,
       });
     } catch (e) {
@@ -1099,6 +1134,9 @@ function MeetingRoomInner({
         )}
       </div>
 
+      {/* Floating 2-Second Comment Popups Overlay */}
+      <CommentPopupOverlay popups={commentPopups} />
+
       {/* Floating Reactions Overlay */}
       <ReactionsOverlay reactions={reactions} />
 
@@ -1232,7 +1270,26 @@ function MeetingRoomInner({
               />
             </div>
 
-            {/* 4. Audience Capacity & Participant Scaling */}
+            {/* 4. Show Comment Popups on Screen (Default: Hidden) */}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
+                  <MessageSquare className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900">Show Comment Popups on Screen</p>
+                  <p className="text-[11px] text-slate-500">When enabled (unhidden), incoming chat comments pop up for 2 seconds on screen for all participants. Default: Hidden.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={adminShowCommentPopup}
+                onChange={e => setAdminShowCommentPopup(e.target.checked)}
+                className="h-4.5 w-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {/* 5. Audience Capacity & Participant Scaling */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1322,6 +1379,7 @@ export function MeetingRoom({
   isVoiceLocked = false,
   isVideoLocked = false,
   onlyShowHost = true,
+  showCommentPopup = false,
   onLeave,
 }: MeetingRoomProps) {
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -1413,6 +1471,7 @@ export function MeetingRoom({
         isVoiceLocked={isVoiceLocked}
         isVideoLocked={isVideoLocked}
         onlyShowHost={onlyShowHost}
+        showCommentPopup={showCommentPopup}
         onLeave={onLeave}
       />
     </LiveKitRoom>

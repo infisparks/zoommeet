@@ -31,6 +31,7 @@ export interface MeetingData {
   isVideoLocked?: boolean;
   isWebinar?: boolean;
   onlyShowHost?: boolean;
+  showCommentPopup?: boolean;
   fakeUserCount?: number;
   createdAt: number;
   scheduledTime?: number;
@@ -139,7 +140,7 @@ export const api = {
   /**
    * Update Live Meeting Locks & Settings (Host Moderation)
    */
-  async updateMeetingLocks(meetingId: string, updates: { isVoiceLocked?: boolean; isVideoLocked?: boolean; onlyShowHost?: boolean; fakeUserCount?: number }) {
+  async updateMeetingLocks(meetingId: string, updates: { isVoiceLocked?: boolean; isVideoLocked?: boolean; onlyShowHost?: boolean; showCommentPopup?: boolean; fakeUserCount?: number }) {
     try {
       const res = await fetch(`${BACKEND_URL}/api/meetings/${meetingId}/lock`, {
         method: "POST",

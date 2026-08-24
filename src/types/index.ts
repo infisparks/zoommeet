@@ -34,6 +34,7 @@ export interface Meeting {
   autoRecord?: boolean;
   maxParticipants?: number;
   onlyShowHost?: boolean;
+  showCommentPopup?: boolean;
   fakeUserCount?: number;
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;

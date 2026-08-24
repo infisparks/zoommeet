@@ -21,6 +21,7 @@ import {
   Crown,
   Copy,
   Check,
+  MessageSquare,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -38,6 +39,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
   const [isVoiceLocked, setIsVoiceLocked] = useState(false);
   const [isVideoLocked, setIsVideoLocked] = useState(false);
   const [onlyShowHost, setOnlyShowHost] = useState(true);
+  const [showCommentPopup, setShowCommentPopup] = useState(false);
   const [fakeUserCount, setFakeUserCount] = useState(200);
   const [enableBooster, setEnableBooster] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -66,6 +68,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
         isVoiceLocked,
         isVideoLocked,
         onlyShowHost,
+        showCommentPopup,
         isWebinar: isVoiceLocked && isVideoLocked,
         fakeUserCount: enableBooster ? fakeUserCount : 0,
       });
@@ -179,6 +182,25 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                   type="checkbox"
                   checked={onlyShowHost}
                   onChange={e => setOnlyShowHost(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Show Comment Popups on Screen (Default: Hidden) */}
+              <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900">Show Comment Popups on Screen</p>
+                    <p className="text-[11px] text-slate-500">Incoming comments appear for 2 seconds on screen. Default: Hidden.</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={showCommentPopup}
+                  onChange={e => setShowCommentPopup(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
               </div>
