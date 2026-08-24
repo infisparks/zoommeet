@@ -58,9 +58,11 @@ import {
   MessageSquare,
   Unlock,
   PictureInPicture2,
+  Pin,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 import { MiniMeetingWindow } from "./MiniMeetingWindow";
+import { PinnedMessageBanner, PinnedMessage } from "./PinnedMessageBanner";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
 
 export const ZOOM_HD_AUDIO_OPTIONS = {
@@ -157,6 +159,7 @@ function MeetingRoomInner({
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [commentPopups, setCommentPopups] = useState<CommentPopupItem[]>([]);
+  const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(null);
   const [lockToast, setLockToast] = useState<{ message: string; type: "locked" | "unlocked" } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [reactions, setReactions] = useState<ReactionItem[]>([]);
@@ -582,6 +585,8 @@ function MeetingRoomInner({
             }
           }
         }
+      } else if (data.type === "pinned_message_update") {
+        setPinnedMessage(data.pinnedMessage || null);
       } else if (data.type === "rename_participant") {
         if (data.identity && data.newName) {
           setCustomNames(prev => ({ ...prev, [data.identity]: data.newName }));
@@ -864,6 +869,37 @@ function MeetingRoomInner({
       participantName: senderName,
       message: text,
       timestamp: newMsg.timestamp,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+  };
+
+  const handlePinMessage = (msg: ChatMessage) => {
+    if (!isHost) return;
+    const item: PinnedMessage = {
+      id: msg.id,
+      participantId: msg.participantId,
+      participantName: msg.participantName,
+      message: msg.message,
+      timestamp: msg.timestamp,
+      pinnedBy: localParticipant?.name || "Host",
+      pinnedAt: Date.now(),
+    };
+    setPinnedMessage(item);
+
+    const payload = JSON.stringify({
+      type: "pinned_message_update",
+      pinnedMessage: item,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+  };
+
+  const handleUnpinMessage = () => {
+    if (!isHost) return;
+    setPinnedMessage(null);
+
+    const payload = JSON.stringify({
+      type: "pinned_message_update",
+      pinnedMessage: null,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
   };
@@ -1264,6 +1300,14 @@ function MeetingRoomInner({
         )}
       </div>
 
+      {/* Admin Pinned Message & Link Banner on Screen */}
+      <PinnedMessageBanner
+        pinnedMessage={pinnedMessage}
+        isCurrentUserHost={isHost}
+        onUnpin={handleUnpinMessage}
+        onOpenChat={() => setIsChatOpen(true)}
+      />
+
       {/* Floating 2-Second Comment Popups Overlay */}
       <CommentPopupOverlay popups={commentPopups} />
 
@@ -1335,6 +1379,9 @@ function MeetingRoomInner({
         isChatLocked={chatLocked}
         isCurrentUserHost={isHost}
         onToggleChatLock={isHost ? handleToggleChatLock : undefined}
+        pinnedMessage={pinnedMessage}
+        onPinMessage={isHost ? handlePinMessage : undefined}
+        onUnpinMessage={isHost ? handleUnpinMessage : undefined}
       />
 
       <MeetingParticipants

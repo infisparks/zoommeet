@@ -2,6 +2,7 @@
 
 import React from "react";
 import { MessageSquare } from "lucide-react";
+import { renderWithClickableLinks } from "@/lib/linkify";
 
 export interface CommentPopupItem {
   id: string;
@@ -70,9 +71,12 @@ export function CommentPopupOverlay({ popups }: CommentPopupOverlayProps) {
                   <span>comment</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-200 leading-snug line-clamp-2 break-words">
-                {item.message}
-              </p>
+              <div className="text-xs text-slate-200 leading-snug line-clamp-2 break-words">
+                {renderWithClickableLinks(
+                  item.message,
+                  "text-sky-300 hover:underline font-bold inline-flex items-center gap-0.5 break-all"
+                )}
+              </div>
             </div>
           </div>
         );

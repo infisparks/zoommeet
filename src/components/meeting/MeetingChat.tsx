@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChatMessage } from "@/types";
 import { Button } from "@/components/ui/Button";
-import { Send, X, Smile, MessageSquare, Sparkles, Lock, Unlock } from "lucide-react";
+import { Send, X, Smile, MessageSquare, Sparkles, Lock, Unlock, Pin, ExternalLink } from "lucide-react";
+import { renderWithClickableLinks } from "@/lib/linkify";
+import { PinnedMessage } from "./PinnedMessageBanner";
 
 interface MeetingChatProps {
   isOpen: boolean;
@@ -14,6 +16,9 @@ interface MeetingChatProps {
   isChatLocked?: boolean;
   isCurrentUserHost?: boolean;
   onToggleChatLock?: () => void;
+  pinnedMessage?: PinnedMessage | null;
+  onPinMessage?: (message: ChatMessage) => void;
+  onUnpinMessage?: () => void;
 }
 
 export function MeetingChat({
@@ -25,6 +30,9 @@ export function MeetingChat({
   isChatLocked = false,
   isCurrentUserHost = false,
   onToggleChatLock,
+  pinnedMessage,
+  onPinMessage,
+  onUnpinMessage,
 }: MeetingChatProps) {
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -118,6 +126,37 @@ export function MeetingChat({
         </div>
       </div>
 
+      {/* Pinned Message Sticky Box (Inside Chat Drawer) */}
+      {pinnedMessage && (
+        <div className="bg-amber-950/40 border-b border-amber-500/30 px-4 py-2.5 flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 min-w-0">
+            <Pin className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5 rotate-45 fill-current" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Pinned Message</span>
+                <span className="text-[10px] text-slate-400">• {pinnedMessage.participantName}</span>
+              </div>
+              <div className="text-xs text-slate-200 line-clamp-2 mt-0.5 leading-snug">
+                {renderWithClickableLinks(
+                  pinnedMessage.message,
+                  "text-sky-300 hover:underline font-bold inline-flex items-center gap-0.5"
+                )}
+              </div>
+            </div>
+          </div>
+          {isCurrentUserHost && onUnpinMessage && (
+            <button
+              type="button"
+              onClick={onUnpinMessage}
+              className="text-[10px] font-bold text-rose-300 hover:text-rose-200 bg-rose-950/60 border border-rose-700/50 rounded-lg px-2 py-0.5 shrink-0 cursor-pointer"
+              title="Unpin message"
+            >
+              Unpin
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Message Stream */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
         {messages.length === 0 ? (
@@ -127,16 +166,18 @@ export function MeetingChat({
             </div>
             <p className="text-xs font-semibold text-slate-300">No messages yet</p>
             <p className="text-[11px] text-slate-500 leading-relaxed max-w-[220px]">
-              Chat with all participants in real time through encrypted data channels.
+              Chat with all participants and share clickable links in real time.
             </p>
           </div>
         ) : (
           messages.map(msg => {
             const isMe = msg.participantId === currentUserId;
+            const isThisPinned = pinnedMessage?.id === msg.id;
+
             return (
               <div
                 key={msg.id}
-                className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                className={`flex flex-col group ${isMe ? "items-end" : "items-start"}`}
               >
                 <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-400">
                   <span className="font-semibold text-slate-300">
@@ -149,15 +190,49 @@ export function MeetingChat({
                       minute: "2-digit",
                     })}
                   </span>
+
+                  {/* Pin Status & Host Pin/Unpin Action */}
+                  {isThisPinned && (
+                    <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/20 text-amber-300 px-1.5 py-0.2 font-bold text-[9px] border border-amber-500/30">
+                      <Pin className="w-2.5 h-2.5 fill-current rotate-45" />
+                      <span>Pinned</span>
+                    </span>
+                  )}
+
+                  {isCurrentUserHost && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isThisPinned) {
+                          if (onUnpinMessage) onUnpinMessage();
+                        } else {
+                          if (onPinMessage) onPinMessage(msg);
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex items-center gap-1 text-[9px] font-bold text-amber-400 hover:text-amber-300 bg-amber-950/60 border border-amber-600/40 rounded px-1.5 py-0.5 cursor-pointer shadow-xs"
+                      title={isThisPinned ? "Unpin message" : "Pin to screen for everyone"}
+                    >
+                      <Pin className="w-2.5 h-2.5 rotate-45" />
+                      <span>{isThisPinned ? "Unpin" : "Pin to Screen"}</span>
+                    </button>
+                  )}
                 </div>
+
                 <div
-                  className={`rounded-2xl px-4 py-2.5 text-xs max-w-[85%] break-words leading-relaxed font-normal shadow-xs ${
-                    isMe
+                  className={`rounded-2xl px-4 py-2.5 text-xs max-w-[88%] break-words leading-relaxed font-normal shadow-xs ${
+                    isThisPinned
+                      ? "ring-2 ring-amber-500/60 bg-[#16213b] border border-amber-500/40 text-slate-100 rounded-bl-xs"
+                      : isMe
                       ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-br-xs"
                       : "bg-[#131E35] border border-white/10 text-slate-200 rounded-bl-xs"
                   }`}
                 >
-                  {msg.message}
+                  {renderWithClickableLinks(
+                    msg.message,
+                    isMe
+                      ? "text-yellow-200 hover:underline font-bold inline-flex items-center gap-0.5 break-all"
+                      : "text-sky-300 hover:underline font-bold inline-flex items-center gap-0.5 break-all"
+                  )}
                 </div>
               </div>
             );
@@ -201,7 +276,7 @@ export function MeetingChat({
             <div className="relative flex items-center">
               <input
                 type="text"
-                placeholder={isChatLocked ? "Type message as Host..." : "Type a message to everyone..."}
+                placeholder={isChatLocked ? "Type message as Host..." : "Type a message or paste a link..."}
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-slate-900/90 px-3.5 py-2.5 pr-10 text-xs text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -220,3 +295,4 @@ export function MeetingChat({
     </div>
   );
 }
+
