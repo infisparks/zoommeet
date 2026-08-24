@@ -43,6 +43,14 @@ export interface Meeting {
   updatedAt?: string;
 }
 
+export interface ChatInteractiveCard {
+  title?: string;
+  priceTag?: string;
+  buttonText: string;
+  buttonUrl: string;
+  badge?: string;
+}
+
 export interface ChatMessage {
   id: string;
   meetingId: string;
@@ -53,6 +61,7 @@ export interface ChatMessage {
   isPrivate?: boolean;
   recipientId?: string;
   senderAvatar?: string;
+  interactiveCard?: ChatInteractiveCard;
 }
 
 export interface Contact {

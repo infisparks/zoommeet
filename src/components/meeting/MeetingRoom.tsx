@@ -30,7 +30,7 @@ import { MeetingParticipants, ExtendedParticipantInfo } from "./MeetingParticipa
 import { ReactionsOverlay } from "./ReactionsOverlay";
 import { CommentPopupOverlay, CommentPopupItem } from "./CommentPopupOverlay";
 import { HostWaitingRoomBanner, WaitingUser } from "./WaitingRoom";
-import { ChatMessage, ReactionItem } from "@/types";
+import { ChatMessage, ReactionItem, ChatInteractiveCard } from "@/types";
 import { chatService } from "@/lib/services";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -451,11 +451,22 @@ function MeetingRoomInner({
     return () => clearTimeout(timer);
   }, [localParticipant, connectionState, initialAudio, initialVideo, cameraFacing, voiceLocked, videoLocked, isHost]);
 
-  // Load initial chat history
+  // Load initial chat history and persistent pinned message
   useEffect(() => {
     chatService.getMessages(roomName).then(msgs => {
-      setMessages(msgs);
+      if (msgs && msgs.length > 0) {
+        setMessages(msgs);
+      }
     });
+
+    if (typeof window !== "undefined") {
+      try {
+        const savedPin = localStorage.getItem(`infiplus_pinned_${roomName.toLowerCase().trim()}`);
+        if (savedPin) {
+          setPinnedMessage(JSON.parse(savedPin));
+        }
+      } catch {}
+    }
   }, [roomName]);
 
   // LiveKit Data Channel listener
@@ -472,8 +483,12 @@ function MeetingRoomInner({
           participantName: data.participantName,
           message: data.message,
           timestamp: data.timestamp || Date.now(),
+          interactiveCard: data.interactiveCard,
         };
-        setMessages(prev => [...prev, newMsg]);
+        setMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
         chatService.saveMessage(newMsg);
         if (!isChatOpen) {
           setUnreadCount(prev => prev + 1);
@@ -587,6 +602,14 @@ function MeetingRoomInner({
         }
       } else if (data.type === "pinned_message_update") {
         setPinnedMessage(data.pinnedMessage || null);
+        if (typeof window !== "undefined") {
+          const key = `infiplus_pinned_${roomName.toLowerCase().trim()}`;
+          if (data.pinnedMessage) {
+            localStorage.setItem(key, JSON.stringify(data.pinnedMessage));
+          } else {
+            localStorage.removeItem(key);
+          }
+        }
       } else if (data.type === "rename_participant") {
         if (data.identity && data.newName) {
           setCustomNames(prev => ({ ...prev, [data.identity]: data.newName }));
@@ -842,7 +865,11 @@ function MeetingRoomInner({
     send(new TextEncoder().encode(payload), { reliable: false });
   };
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (
+    text: string,
+    interactiveCard?: ChatInteractiveCard,
+    andPin: boolean = false
+  ) => {
     if (!localParticipant) return;
     if (chatLocked && !isHost && !coHosts.includes(localParticipant.identity)) {
       alert("Comments are currently locked by the host.");
@@ -850,15 +877,19 @@ function MeetingRoomInner({
     }
     const senderName = localParticipant.name || "Participant";
     const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}-${Math.random()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       meetingId: roomName,
       participantId: localParticipant.identity,
       participantName: senderName,
       message: text,
       timestamp: Date.now(),
+      interactiveCard,
     };
 
-    setMessages(prev => [...prev, newMsg]);
+    setMessages(prev => {
+      if (prev.some(m => m.id === newMsg.id)) return prev;
+      return [...prev, newMsg];
+    });
     chatService.saveMessage(newMsg);
     triggerCommentPopup(senderName, text);
 
@@ -869,8 +900,13 @@ function MeetingRoomInner({
       participantName: senderName,
       message: text,
       timestamp: newMsg.timestamp,
+      interactiveCard,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
+
+    if (andPin && isHost) {
+      handlePinMessage(newMsg);
+    }
   };
 
   const handlePinMessage = (msg: ChatMessage) => {
@@ -883,8 +919,12 @@ function MeetingRoomInner({
       timestamp: msg.timestamp,
       pinnedBy: localParticipant?.name || "Host",
       pinnedAt: Date.now(),
+      interactiveCard: msg.interactiveCard,
     };
     setPinnedMessage(item);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`infiplus_pinned_${roomName.toLowerCase().trim()}`, JSON.stringify(item));
+    }
 
     const payload = JSON.stringify({
       type: "pinned_message_update",
@@ -896,6 +936,9 @@ function MeetingRoomInner({
   const handleUnpinMessage = () => {
     if (!isHost) return;
     setPinnedMessage(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(`infiplus_pinned_${roomName.toLowerCase().trim()}`);
+    }
 
     const payload = JSON.stringify({
       type: "pinned_message_update",
