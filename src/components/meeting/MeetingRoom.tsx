@@ -62,6 +62,7 @@ import {
   Minimize2,
   Mic,
   PhoneOff,
+  ChevronLeft,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
@@ -283,10 +284,40 @@ function MeetingRoomInner({
     setIsMiniWindow(prev => !prev);
   };
 
-  // Auto Picture-in-Picture when user presses device middle home button or switches tabs/apps
+  // Intercept Browser Back button: keep meeting running in popup window instead of killing it
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Push state so back button doesn't leave the page immediately
+    try {
+      window.history.pushState({ meetingActive: true }, "", window.location.href);
+    } catch {
+      // ignore
+    }
+
+    const handlePopState = () => {
+      // Keep the meeting in the popup window automatically without disconnecting
+      setIsMiniWindow(true);
+      try {
+        window.history.pushState({ meetingActive: true }, "", window.location.href);
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  // Auto Picture-in-Picture & Mini Popup Window when clicking middle home button, switching tabs/apps, or minimizing
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.hidden) {
+        // Automatically keep the meeting in popup window
+        setIsMiniWindow(true);
+
         try {
           const videos = document.querySelectorAll("video");
           const activeVideo = Array.from(videos).find(
@@ -300,9 +331,16 @@ function MeetingRoomInner({
         }
       }
     };
+
+    const handlePageHide = () => {
+      setIsMiniWindow(true);
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   }, []);
 
@@ -1255,7 +1293,15 @@ function MeetingRoomInner({
         }}
       >
         {/* Minimal Meeting Info */}
-        <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-3.5 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
+        <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-3 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
+          <button
+            type="button"
+            onClick={() => setIsMiniWindow(true)}
+            className="flex items-center justify-center -ml-1 h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition active:scale-90 cursor-pointer"
+            title="Minimize to Popup Window"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="font-bold text-white max-w-[120px] sm:max-w-xs truncate">
             {meetingTitle || roomName}
