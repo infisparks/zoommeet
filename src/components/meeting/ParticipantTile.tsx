@@ -80,6 +80,8 @@ export function ParticipantTile({
           autoPlay
           playsInline
           muted={isLocal}
+          // @ts-expect-error autoPictureInPicture is supported by modern Chromium & Safari
+          autoPictureInPicture="true"
         />
       </div>
 

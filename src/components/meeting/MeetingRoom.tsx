@@ -57,12 +57,6 @@ import {
   VolumeX,
   MessageSquare,
   Unlock,
-  PictureInPicture2,
-  Maximize2,
-  Minimize2,
-  Mic,
-  PhoneOff,
-  ChevronLeft,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
@@ -133,7 +127,6 @@ function MeetingRoomInner({
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [permissionMediaType, setPermissionMediaType] = useState<"camera" | "microphone" | "both">("both");
   const [permissionError, setPermissionError] = useState<string | null>(null);
-  const [isMiniWindow, setIsMiniWindow] = useState(false);
 
   // Social Proof Booster (fuser) & Webinar Lock State
   const [fuserCount, setFuserCount] = useState(fakeUserCount || 200);
@@ -262,29 +255,22 @@ function MeetingRoomInner({
     };
   }, []);
 
-  // Picture-in-Picture / Popup Window Toggle
-  const handleTogglePiP = async () => {
+  // Default Browser Chrome/Safari Picture-in-Picture Trigger
+  const openBrowserDefaultPiP = useCallback(async () => {
     try {
-      const videos = document.querySelectorAll("video");
+      const videos = Array.from(document.querySelectorAll("video"));
       const activeVideo =
-        Array.from(videos).find(v => (v.srcObject as MediaStream)?.active || v.videoWidth > 0) ||
+        videos.find(v => (v.srcObject as MediaStream)?.active || v.videoWidth > 0) ||
         videos[0];
-      if (activeVideo && document.pictureInPictureEnabled) {
-        if (document.pictureInPictureElement) {
-          await document.exitPictureInPicture();
-        } else {
-          await activeVideo.requestPictureInPicture();
-        }
-        return;
+      if (activeVideo && document.pictureInPictureEnabled && !document.pictureInPictureElement) {
+        await activeVideo.requestPictureInPicture();
       }
     } catch (err) {
-      console.warn("HTML5 PiP fallback to in-app mini window:", err);
+      console.warn("Browser native PiP notice:", err);
     }
-    // Fallback to floating in-app popup window
-    setIsMiniWindow(prev => !prev);
-  };
+  }, []);
 
-  // Intercept Browser Back button: keep meeting running in popup window instead of killing it
+  // Intercept Browser Back button: trigger browser default PiP window on back click
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -296,8 +282,8 @@ function MeetingRoomInner({
     }
 
     const handlePopState = () => {
-      // Keep the meeting in the popup window automatically without disconnecting
-      setIsMiniWindow(true);
+      // Trigger default Chrome PiP popup window showing the meeting
+      openBrowserDefaultPiP();
       try {
         window.history.pushState({ meetingActive: true }, "", window.location.href);
       } catch {
@@ -309,31 +295,18 @@ function MeetingRoomInner({
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [openBrowserDefaultPiP]);
 
-  // Auto Picture-in-Picture & Mini Popup Window when clicking middle home button, switching tabs/apps, or minimizing
+  // Trigger default Chrome PiP window when clicking middle home button, switching tabs/apps, or minimizing browser
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.hidden) {
-        // Automatically keep the meeting in popup window
-        setIsMiniWindow(true);
-
-        try {
-          const videos = document.querySelectorAll("video");
-          const activeVideo = Array.from(videos).find(
-            v => (v.srcObject as MediaStream)?.active || v.videoWidth > 0
-          );
-          if (activeVideo && document.pictureInPictureEnabled && !document.pictureInPictureElement) {
-            await activeVideo.requestPictureInPicture();
-          }
-        } catch (err) {
-          console.warn("Auto-PiP on visibility change notice:", err);
-        }
+        openBrowserDefaultPiP();
       }
     };
 
     const handlePageHide = () => {
-      setIsMiniWindow(true);
+      openBrowserDefaultPiP();
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -342,7 +315,7 @@ function MeetingRoomInner({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pagehide", handlePageHide);
     };
-  }, []);
+  }, [openBrowserDefaultPiP]);
 
   const requestFullscreenPolyfill = async (el: HTMLElement) => {
     try {
@@ -1166,101 +1139,6 @@ function MeetingRoomInner({
       || participants.find(p => !p.isLocal)?.identity
       || localParticipant?.identity);
 
-  if (isMiniWindow) {
-    return (
-      <div
-        className="fixed bottom-4 right-4 z-50 w-72 sm:w-88 aspect-video rounded-2xl bg-[#070B14] border-2 border-indigo-500/60 shadow-2xl overflow-hidden flex flex-col font-[Poppins,sans-serif] animate-in zoom-in-95 duration-200 select-none"
-        style={{
-          boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(99, 102, 241, 0.3)",
-        }}
-      >
-        {/* Audio Renderer always running */}
-        <RoomAudioRenderer />
-
-        {/* Video Stage */}
-        <div className="relative flex-1 w-full h-full bg-black flex items-center justify-center overflow-hidden">
-          {screenShareTrack ? (
-            <ScreenShareView
-              screenTrack={screenShareTrack}
-              cameraTracks={allParticipantTiles}
-              hostIdentity={actualHostIdentity}
-              isCurrentUserHost={isHost}
-              isLocalSharing={isLocalScreenSharing}
-              totalAudienceCount={totalConnectedCount}
-              onStopShare={handleToggleScreenShare}
-            />
-          ) : (
-            <VideoGrid
-              tracks={allParticipantTiles}
-              hostIdentity={actualHostIdentity}
-              coHostIdentities={coHosts}
-              raisedHandIdentities={raisedHands}
-              customNames={customNames}
-              isFocusView={isFocusView}
-              onlyShowHost={onlyShowHostState}
-              totalAudienceCount={totalConnectedCount}
-            />
-          )}
-
-          {/* Floating Mini Top Controls */}
-          <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-auto z-30">
-            <div className="flex items-center gap-1.5 rounded-full bg-black/80 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold text-white border border-white/15 shadow-md">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="max-w-[110px] truncate">{meetingTitle || roomName}</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setIsMiniWindow(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg cursor-pointer transition-transform active:scale-95 border border-indigo-400/40"
-                title="Expand Fullscreen"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={onLeave}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-lg cursor-pointer transition-transform active:scale-95 border border-rose-400/40"
-                title="Leave Meeting"
-              >
-                <PhoneOff className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Floating Mini Bottom Controls */}
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/85 backdrop-blur-md rounded-full px-3 py-1 border border-white/15 z-30 pointer-events-auto shadow-xl">
-            <button
-              type="button"
-              onClick={handleToggleMic}
-              className={`p-1.5 rounded-full text-xs cursor-pointer transition-transform active:scale-90 ${
-                !localParticipant?.isMicrophoneEnabled
-                  ? "text-rose-300 bg-rose-950/80 border border-rose-800/60"
-                  : "text-emerald-400 hover:bg-white/10"
-              }`}
-              title={!localParticipant?.isMicrophoneEnabled ? "Unmute" : "Mute"}
-            >
-              {!localParticipant?.isMicrophoneEnabled ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={handleToggleVideo}
-              className={`p-1.5 rounded-full text-xs cursor-pointer transition-transform active:scale-90 ${
-                !localParticipant?.isCameraEnabled
-                  ? "text-rose-300 bg-rose-950/80 border border-rose-800/60"
-                  : "text-indigo-400 hover:bg-white/10"
-              }`}
-              title={!localParticipant?.isCameraEnabled ? "Start Camera" : "Stop Camera"}
-            >
-              {!localParticipant?.isCameraEnabled ? <VideoOff className="h-3.5 w-3.5" /> : <VideoIcon className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
       className="fixed inset-0 z-40 flex h-full w-full flex-col bg-[#070B14] text-white overflow-hidden select-none font-[Poppins,sans-serif] overscroll-none touch-manipulation"
@@ -1293,15 +1171,7 @@ function MeetingRoomInner({
         }}
       >
         {/* Minimal Meeting Info */}
-        <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-3 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
-          <button
-            type="button"
-            onClick={() => setIsMiniWindow(true)}
-            className="flex items-center justify-center -ml-1 h-6 w-6 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition active:scale-90 cursor-pointer"
-            title="Minimize to Popup Window"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-3.5 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
           <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="font-bold text-white max-w-[120px] sm:max-w-xs truncate">
             {meetingTitle || roomName}
@@ -1356,15 +1226,6 @@ function MeetingRoomInner({
                 <span className="hidden sm:inline text-[11px]">Share</span>
               </>
             )}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleTogglePiP}
-            className="flex items-center justify-center h-7.5 w-7.5 sm:h-8 sm:w-8 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-white/10 backdrop-blur-md transition active:scale-95 cursor-pointer shadow-md"
-            title="Mini Popup Window (Picture-in-Picture)"
-          >
-            <PictureInPicture2 className="h-3.5 w-3.5 text-indigo-300" />
           </button>
 
           <button
@@ -1481,7 +1342,6 @@ function MeetingRoomInner({
         onToggleRecord={() => setIsRecording(!isRecording)}
         onFlipCamera={handleFlipCamera}
         onToggleFullscreen={toggleFullscreen}
-        onTogglePiP={handleTogglePiP}
       />
 
       {/* Slide-out Panels */}

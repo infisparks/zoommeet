@@ -26,7 +26,6 @@ import {
   Maximize,
   Minimize,
   Lock,
-  PictureInPicture2,
 } from "lucide-react";
 import { AudioDeviceMenu } from "./AudioDeviceMenu";
 
@@ -60,7 +59,6 @@ interface MeetingControlsProps {
   onToggleRecord?: () => void;
   onFlipCamera?: () => void;
   onToggleFullscreen?: () => void;
-  onTogglePiP?: () => void;
 }
 
 const EMOJI_LIST = ["👍", "👏", "❤️", "🎉", "🔥", "😂", "✋", "😮"];
@@ -93,7 +91,6 @@ export function MeetingControls({
   onCopyLink,
   onFlipCamera,
   onToggleFullscreen,
-  onTogglePiP,
 }: MeetingControlsProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLeaveMenu, setShowLeaveMenu] = useState(false);
@@ -306,20 +303,7 @@ export function MeetingControls({
             </button>
           )}
 
-          {/* 9. Popup Window / Picture-in-Picture */}
-          {onTogglePiP && (
-            <button
-              type="button"
-              onClick={onTogglePiP}
-              className="hidden sm:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
-              title="Mini Popup Window (Picture-in-Picture)"
-            >
-              <PictureInPicture2 className="h-5 w-5 text-indigo-400" />
-              <span className="mt-0.5 text-[11px] font-medium">Popup</span>
-            </button>
-          )}
-
-          {/* 10. View Mode (Desktop Only) */}
+          {/* 9. View Mode (Desktop Only) */}
           <button
             type="button"
             onClick={onToggleViewMode}
@@ -451,21 +435,6 @@ export function MeetingControls({
                 >
                   {isFullscreen ? <Minimize className="h-4.5 w-4.5 text-indigo-300" /> : <Maximize className="h-4.5 w-4.5 text-indigo-300" />}
                   <span>{isFullscreen ? "Exit Fullscreen" : "Full Screen / Landscape Mode"}</span>
-                </button>
-              )}
-
-              {/* Mini Popup Window / Picture-in-Picture on Mobile */}
-              {onTogglePiP && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onTogglePiP();
-                    setShowMobileMore(false);
-                  }}
-                  className="flex items-center gap-2.5 rounded-xl bg-purple-600/30 border border-purple-500/40 p-3 text-xs font-semibold text-white hover:bg-purple-600/50 cursor-pointer touch-manipulation active:scale-95 col-span-2"
-                >
-                  <PictureInPicture2 className="h-4.5 w-4.5 text-purple-300" />
-                  <span>Show Meeting in Popup Window (PiP)</span>
                 </button>
               )}
 
