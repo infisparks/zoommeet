@@ -43,6 +43,7 @@ export default function SchedulePage() {
   const [passwordEnabled, setPasswordEnabled] = useState(false);
   const [password, setPassword] = useState("");
   const [allowBeforeHost, setAllowBeforeHost] = useState(true);
+  const [onlyShowHost, setOnlyShowHost] = useState(true);
   const [autoRecord, setAutoRecord] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -69,6 +70,7 @@ export default function SchedulePage() {
         passwordEnabled: passwordEnabled,
         password: passwordEnabled ? password : undefined,
         allowBeforeHost,
+        onlyShowHost,
         autoRecord,
       });
 
@@ -242,6 +244,22 @@ export default function SchedulePage() {
                   <p className="text-xs font-semibold text-slate-900">Allow Attendees to Join Before Host</p>
                   <p className="text-[11px] text-slate-500">
                     Participants can enter the room and talk before the scheduled host arrives.
+                  </p>
+                </div>
+              </label>
+
+              {/* Show Only Admin Screen Stage Mode (Default: Checked) */}
+              <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={onlyShowHost}
+                  onChange={e => setOnlyShowHost(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <p className="text-xs font-semibold text-slate-900">Show Only Admin Screen (Default: Checked)</p>
+                  <p className="text-[11px] text-slate-500">
+                    When checked, only Admin screen fills the stage for everyone (like screen share). Uncheck to allow all participants to see all screens in a grid.
                   </p>
                 </div>
               </label>

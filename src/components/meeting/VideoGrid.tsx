@@ -23,7 +23,7 @@ export function VideoGrid({
   raisedHandIdentities = [],
   customNames = {},
   isFocusView = false,
-  onlyShowHost = false,
+  onlyShowHost = true,
   totalAudienceCount = 0,
 }: VideoGridProps) {
   const [pinnedIdentity, setPinnedIdentity] = useState<string | null>(null);
@@ -36,32 +36,57 @@ export function VideoGrid({
     );
   }
 
-  // If onlyShowHost is enabled (Webinar Stage Mode):
-  // Filter stage tracks to Host, Co-Hosts, and the local attendee ("You") only
-  const stageTracks = onlyShowHost
-    ? tracks.filter(t => {
-        const isHost = t.participant.identity === hostIdentity;
-        const isCoHost = coHostIdentities.includes(t.participant.identity);
-        const isLocal = t.participant.isLocal;
-        return isHost || isCoHost || isLocal;
-      })
-    : tracks;
-
-  // Fallback to all tracks if no stage track matched
-  const activeTracks = stageTracks.length > 0 ? stageTracks : tracks;
-
-  // Handle Focus / Pinned View OR Single Host Stage View
-  if (isFocusView || pinnedIdentity || (onlyShowHost && activeTracks.length === 1)) {
-    const focusTrack =
-      activeTracks.find(t => t.participant.identity === pinnedIdentity) ||
-      activeTracks.find(t => t.participant.identity === hostIdentity) ||
-      activeTracks[0];
-    const otherTracks = activeTracks.filter(t => t.participant.identity !== focusTrack.participant.identity);
+  // 1. Stage Mode: ONLY SHOW ADMIN SCREEN (Default Enabled)
+  // When onlyShowHost is true, only the Admin / Host screen fills the entire stage (like ScreenShareView)
+  if (onlyShowHost) {
+    const hostTrack =
+      tracks.find(t => t.participant.identity === hostIdentity) ||
+      tracks.find(
+        t =>
+          t.participant.name?.toLowerCase().includes("admin") ||
+          t.participant.name?.toLowerCase().includes("host")
+      ) ||
+      tracks.find(t => !t.participant.isLocal) ||
+      tracks[0];
 
     return (
-      <div className="relative flex h-full w-full flex-col gap-3 p-1.5 sm:p-4 min-h-0 min-w-0 overflow-hidden">
+      <div className="relative flex h-full w-full flex-col p-0 sm:p-1 min-h-0 min-w-0 overflow-hidden select-none font-[Poppins,sans-serif]">
+        {/* Full-Bleed Admin Stage (Takes 100% full view, like screen share) */}
+        <div className="relative flex-1 min-h-0 w-full rounded-xl sm:rounded-2xl bg-black border border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center">
+          <ParticipantTile
+            trackRef={hostTrack}
+            isHost={hostTrack.participant.identity === hostIdentity || true}
+            isCoHost={false}
+            isHandRaised={raisedHandIdentities.includes(hostTrack.participant.identity)}
+            customName={customNames[hostTrack.participant.identity]}
+            isPinned={false}
+            className="h-full w-full"
+          />
+
+          {/* Audience Social Proof Pill inside Admin Stage */}
+          {totalAudienceCount > 1 && (
+            <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2 rounded-full bg-slate-950/85 px-3.5 py-1.5 border border-white/15 text-xs font-semibold text-slate-200 backdrop-blur-md shadow-lg pointer-events-none">
+              <Users className="w-3.5 h-3.5 text-indigo-400" />
+              <span>+ {totalAudienceCount - 1} in call</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Focus / Pinned View (When onlyShowHost is unchecked and a participant is pinned / focus view)
+  if (isFocusView || pinnedIdentity) {
+    const focusTrack =
+      tracks.find(t => t.participant.identity === pinnedIdentity) ||
+      tracks.find(t => t.participant.identity === hostIdentity) ||
+      tracks[0];
+    const otherTracks = tracks.filter(t => t.participant.identity !== focusTrack.participant.identity);
+
+    return (
+      <div className="relative flex h-full w-full flex-col gap-3 p-1.5 sm:p-4 min-h-0 min-w-0 overflow-hidden select-none font-[Poppins,sans-serif]">
         {/* Main Stage */}
-        <div className="flex-1 min-h-0 w-full relative">
+        <div className="flex-1 min-h-0 w-full relative rounded-xl sm:rounded-2xl overflow-hidden bg-black border border-slate-800/80 shadow-2xl">
           <ParticipantTile
             trackRef={focusTrack}
             isHost={focusTrack.participant.identity === hostIdentity}
@@ -77,7 +102,6 @@ export function VideoGrid({
             className="h-full w-full"
           />
 
-          {/* Social Proof Floating Audience Badge in Stage Mode */}
           {totalAudienceCount > 1 && (
             <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2 rounded-full bg-slate-950/80 px-3.5 py-1.5 border border-white/15 text-xs font-semibold text-slate-200 backdrop-blur-md shadow-lg pointer-events-none">
               <Users className="w-3.5 h-3.5 text-indigo-400" />
@@ -86,7 +110,7 @@ export function VideoGrid({
           )}
         </div>
 
-        {/* Filmstrip at bottom for Co-Hosts/Presenters if present */}
+        {/* Filmstrip at bottom for other participants */}
         {otherTracks.length > 0 && (
           <div className="flex h-28 sm:h-36 w-full gap-3 overflow-x-auto pb-1 shrink-0">
             {otherTracks.map(track => (
@@ -108,8 +132,9 @@ export function VideoGrid({
     );
   }
 
-  // Adaptive Grid Layout based on count
-  const count = activeTracks.length;
+  // 3. Shared Multi-User Grid (When Admin UNCHECKS "Show Only Admin Screen")
+  // Adaptive Grid Layout based on participant count so ALL can see ALL screens
+  const count = tracks.length;
 
   let gridColsClass = "grid-cols-1";
   let gridRowsClass = "grid-rows-1";
@@ -132,8 +157,8 @@ export function VideoGrid({
   }
 
   return (
-    <div className={`relative grid h-full w-full gap-2 sm:gap-4 p-1.5 sm:p-4 ${gridColsClass} ${gridRowsClass} auto-rows-fr min-h-0 min-w-0 overflow-hidden`}>
-      {activeTracks.map(track => (
+    <div className={`relative grid h-full w-full gap-2 sm:gap-4 p-1.5 sm:p-4 ${gridColsClass} ${gridRowsClass} auto-rows-fr min-h-0 min-w-0 overflow-hidden font-[Poppins,sans-serif]`}>
+      {tracks.map(track => (
         <div key={track.participant.identity + track.source} className="h-full w-full min-h-0 min-w-0">
           <ParticipantTile
             trackRef={track}

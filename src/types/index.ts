@@ -33,6 +33,10 @@ export interface Meeting {
   allowBeforeHost?: boolean;
   autoRecord?: boolean;
   maxParticipants?: number;
+  onlyShowHost?: boolean;
+  fakeUserCount?: number;
+  isVoiceLocked?: boolean;
+  isVideoLocked?: boolean;
   createdAt: string;
   updatedAt?: string;
 }

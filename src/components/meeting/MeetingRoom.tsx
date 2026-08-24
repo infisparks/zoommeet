@@ -1213,15 +1213,15 @@ function MeetingRoomInner({
               />
             </div>
 
-            {/* 3. Webinar Stage Mode (Show Only Host) */}
+            {/* 3. Show Only Admin Screen (Default: Checked) */}
             <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100 shrink-0">
                   <Crown className="w-4.5 h-4.5" />
                 </div>
                 <div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-900">Webinar Stage Mode (Show Only Host)</p>
-                  <p className="text-[11px] text-slate-500">Only Host is shown full screen; attendees watch as audience without filling grid tiles.</p>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900">Show Only Admin Screen (Default)</p>
+                  <p className="text-[11px] text-slate-500">When checked, only the Admin screen fills the stage for everyone (like screen share). Uncheck to let all participants see all screens in a shared grid.</p>
                 </div>
               </div>
               <input

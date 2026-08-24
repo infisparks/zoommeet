@@ -14,6 +14,10 @@ export interface CreateMeetingInput {
   allowBeforeHost?: boolean;
   autoRecord?: boolean;
   maxParticipants?: number;
+  onlyShowHost?: boolean;
+  fakeUserCount?: number;
+  isVoiceLocked?: boolean;
+  isVideoLocked?: boolean;
 }
 
 export interface MeetingRepository {

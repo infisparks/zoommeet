@@ -120,6 +120,10 @@ export class LocalMeetingRepository implements MeetingRepository {
       allowBeforeHost: input.allowBeforeHost ?? true,
       autoRecord: input.autoRecord ?? false,
       maxParticipants: input.maxParticipants || 50,
+      onlyShowHost: input.onlyShowHost ?? true,
+      fakeUserCount: input.fakeUserCount,
+      isVoiceLocked: input.isVoiceLocked,
+      isVideoLocked: input.isVideoLocked,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

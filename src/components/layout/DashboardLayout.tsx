@@ -164,15 +164,15 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                 />
               </div>
 
-              {/* Focus Host Only Stage Mode */}
+              {/* Show Only Admin Screen Stage Mode (Default: Checked) */}
               <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
                     <Crown className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs sm:text-sm font-bold text-slate-900">Webinar Stage Mode (Show Only Host)</p>
-                    <p className="text-[11px] text-slate-500">Only Host is shown full screen; attendees watch as audience without filling grid tiles.</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900">Show Only Admin Screen (Default)</p>
+                    <p className="text-[11px] text-slate-500">Only Admin screen fills the stage for everyone (like screen share). Uncheck to show all cameras.</p>
                   </div>
                 </div>
                 <input
