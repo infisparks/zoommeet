@@ -60,7 +60,6 @@ import {
   PictureInPicture2,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
-import { MiniMeetingWindow } from "./MiniMeetingWindow";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
 
 export const ZOOM_HD_AUDIO_OPTIONS = {
@@ -124,7 +123,6 @@ function MeetingRoomInner({
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isFocusView, setIsFocusView] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [isMiniWindow, setIsMiniWindow] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -375,17 +373,76 @@ function MeetingRoomInner({
 
   const handleToggleMiniWindow = async () => {
     try {
-      const videoEl = document.querySelector("video") as HTMLVideoElement | null;
-      if (document.pictureInPictureEnabled && videoEl && !document.pictureInPictureElement) {
-        await videoEl.requestPictureInPicture();
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
         return;
       }
+      const videoEl = document.querySelector("video") as HTMLVideoElement | null;
+      if (videoEl && document.pictureInPictureEnabled) {
+        await videoEl.requestPictureInPicture();
+      }
     } catch (e) {
-      console.warn("Native PiP notice:", e);
+      console.warn("Picture-in-Picture toggle notice:", e);
     }
-    // Fallback or explicit In-App Pop-up Window
-    setIsMiniWindow(prev => !prev);
   };
+
+  // Google Meet-style Auto Picture-in-Picture on tab switch / minimize / home button
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Set Media Session metadata & actions for browser OS PiP
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: meetingTitle || roomName,
+          artist: "Live Video Conference",
+          album: "Live Meeting",
+        });
+        navigator.mediaSession.playbackState = "playing";
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (navigator.mediaSession.setActionHandler as any)("enterpictureinpicture", async () => {
+          const videoEl = document.querySelector("video") as HTMLVideoElement | null;
+          if (videoEl && document.pictureInPictureEnabled && !document.pictureInPictureElement) {
+            await videoEl.requestPictureInPicture().catch(() => {});
+          }
+        });
+      } catch (e) {
+        console.warn("MediaSession PiP handler notice:", e);
+      }
+    }
+
+    // Auto-trigger native Picture-in-Picture when user exits Chrome / switches apps / presses home button
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "hidden") {
+        const videoEl = document.querySelector("video") as HTMLVideoElement | null;
+        if (videoEl && document.pictureInPictureEnabled && !document.pictureInPictureElement) {
+          try {
+            await videoEl.requestPictureInPicture();
+          } catch (e) {
+            console.warn("Auto Picture-in-Picture trigger notice:", e);
+          }
+        }
+      }
+    };
+
+    const handlePageHide = async () => {
+      const videoEl = document.querySelector("video") as HTMLVideoElement | null;
+      if (videoEl && document.pictureInPictureEnabled && !document.pictureInPictureElement) {
+        try {
+          await videoEl.requestPictureInPicture();
+        } catch (e) {}
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [meetingTitle, roomName]);
 
   // Initialize Krisp AI Deep-Learning Noise Filter
   useEffect(() => {
@@ -1202,22 +1259,6 @@ function MeetingRoomInner({
           </button>
         </div>
       </div>
-
-      {/* Floating In-App Mini Pop-up Window */}
-      {isMiniWindow && (
-        <MiniMeetingWindow
-          meetingTitle={meetingTitle}
-          roomName={roomName}
-          elapsedSeconds={elapsedSeconds}
-          activeTrack={allParticipantTiles[0]}
-          isMuted={!localParticipant?.isMicrophoneEnabled}
-          isVideoMuted={!localParticipant?.isCameraEnabled}
-          onToggleMic={handleToggleMic}
-          onToggleVideo={handleToggleVideo}
-          onExpand={() => setIsMiniWindow(false)}
-          onLeave={onLeave}
-        />
-      )}
 
       {/* Host Waiting Room Banner */}
       {isHost && (
