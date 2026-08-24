@@ -170,29 +170,26 @@ function MeetingRoomInner({
   const [waitingUsers, setWaitingUsers] = useState<WaitingUser[]>([]);
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
 
-  // Sync ref for showCommentPopupState to prevent stale closures
-  const showCommentPopupRef = useRef(showCommentPopup ?? false);
-  useEffect(() => {
-    showCommentPopupRef.current = showCommentPopupState;
-  }, [showCommentPopupState]);
+  // Trigger 2-second Message Popup on Screen for all incoming/outgoing messages
+  const triggerCommentPopup = useCallback(
+    (senderName: string, message: string, interactiveCard?: ChatInteractiveCard) => {
+      const id = `popup-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const newItem: CommentPopupItem = {
+        id,
+        senderName,
+        message,
+        timestamp: Date.now(),
+        interactiveCard,
+      };
+      setCommentPopups(prev => [...prev.slice(-2), newItem]);
 
-  // Trigger 2-second Comment Popup on Screen when enabled
-  const triggerCommentPopup = useCallback((senderName: string, message: string) => {
-    if (!showCommentPopupRef.current) return;
-    const id = `popup-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const newItem: CommentPopupItem = {
-      id,
-      senderName,
-      message,
-      timestamp: Date.now(),
-    };
-    setCommentPopups(prev => [...prev.slice(-2), newItem]);
-
-    // Automatically hide after exactly 2 seconds
-    setTimeout(() => {
-      setCommentPopups(prev => prev.filter(p => p.id !== id));
-    }, 2000);
-  }, []);
+      // Automatically hide after exactly 2 seconds
+      setTimeout(() => {
+        setCommentPopups(prev => prev.filter(p => p.id !== id));
+      }, 2000);
+    },
+    []
+  );
 
   // Trigger small Lock/Unlock Notification Toast on Screen
   const triggerLockToast = useCallback((locked: boolean) => {
@@ -499,7 +496,7 @@ function MeetingRoomInner({
         if (!isChatOpen) {
           setUnreadCount(prev => prev + 1);
         }
-        triggerCommentPopup(data.participantName, data.message);
+        triggerCommentPopup(data.participantName, data.message, data.interactiveCard);
       } else if (data.type === "reaction") {
         const newReaction: ReactionItem = {
           id: `rx-${Date.now()}-${Math.random()}`,
@@ -551,7 +548,6 @@ function MeetingRoomInner({
         }
         if (typeof data.showCommentPopup === "boolean") {
           setShowCommentPopupState(data.showCommentPopup);
-          showCommentPopupRef.current = data.showCommentPopup;
         }
         if (typeof data.chatLocked === "boolean") {
           if (data.chatLocked !== chatLocked) {
@@ -898,7 +894,7 @@ function MeetingRoomInner({
       return [...prev, newMsg];
     });
     chatService.saveMessage(newMsg);
-    triggerCommentPopup(senderName, text);
+    triggerCommentPopup(senderName, text, interactiveCard);
 
     const payload = JSON.stringify({
       type: "chat",
@@ -1079,7 +1075,6 @@ function MeetingRoomInner({
     setVideoLocked(adminVideoLock);
     setOnlyShowHostState(adminOnlyShowHost);
     setShowCommentPopupState(adminShowCommentPopup);
-    showCommentPopupRef.current = adminShowCommentPopup;
     setChatLocked(adminChatLock);
     if (adminChatLock !== chatLocked) {
       triggerLockToast(adminChatLock);
