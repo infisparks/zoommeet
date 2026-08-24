@@ -26,6 +26,7 @@ import {
   Maximize,
   Minimize,
   Lock,
+  PictureInPicture2,
 } from "lucide-react";
 import { AudioDeviceMenu } from "./AudioDeviceMenu";
 
@@ -59,6 +60,7 @@ interface MeetingControlsProps {
   onToggleRecord?: () => void;
   onFlipCamera?: () => void;
   onToggleFullscreen?: () => void;
+  onToggleMiniWindow?: () => void;
 }
 
 const EMOJI_LIST = ["👍", "👏", "❤️", "🎉", "🔥", "😂", "✋", "😮"];
@@ -91,6 +93,7 @@ export function MeetingControls({
   onCopyLink,
   onFlipCamera,
   onToggleFullscreen,
+  onToggleMiniWindow,
 }: MeetingControlsProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLeaveMenu, setShowLeaveMenu] = useState(false);
@@ -314,7 +317,20 @@ export function MeetingControls({
             <span className="mt-0.5 text-[11px] font-medium">{isFocusView ? "Grid" : "Focus"}</span>
           </button>
 
-          {/* 10. Mobile More Button (⋯) */}
+          {/* 10. Pop-up Window (Picture-in-Picture) */}
+          {onToggleMiniWindow && (
+            <button
+              type="button"
+              onClick={onToggleMiniWindow}
+              className="hidden lg:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-indigo-300 transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation"
+              title="Pop-up Window (Picture-in-Picture)"
+            >
+              <PictureInPicture2 className="h-5 w-5" />
+              <span className="mt-0.5 text-[11px] font-medium">Pop-up</span>
+            </button>
+          )}
+
+          {/* 11. Mobile More Button (⋯) */}
           <button
             type="button"
             onClick={() => setShowMobileMore(!showMobileMore)}
@@ -435,6 +451,21 @@ export function MeetingControls({
                 >
                   {isFullscreen ? <Minimize className="h-4.5 w-4.5 text-indigo-300" /> : <Maximize className="h-4.5 w-4.5 text-indigo-300" />}
                   <span>{isFullscreen ? "Exit Fullscreen" : "Full Screen / Landscape Mode"}</span>
+                </button>
+              )}
+
+              {/* Pop-up Window / Picture-in-Picture on Mobile */}
+              {onToggleMiniWindow && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleMiniWindow();
+                    setShowMobileMore(false);
+                  }}
+                  className="flex items-center gap-2.5 rounded-xl bg-indigo-950/60 border border-indigo-500/30 p-3 text-xs font-semibold text-indigo-200 hover:bg-indigo-900/50 cursor-pointer touch-manipulation active:scale-95 col-span-2"
+                >
+                  <PictureInPicture2 className="h-4.5 w-4.5 text-indigo-400" />
+                  <span>Pop-up Mini Window (Picture-in-Picture)</span>
                 </button>
               )}
 

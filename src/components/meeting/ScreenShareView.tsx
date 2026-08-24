@@ -82,8 +82,6 @@ export function ScreenShareView({
           className={`h-full w-full object-contain ${isRealTrack ? "block" : "hidden"}`}
           autoPlay
           playsInline
-          // @ts-expect-error autoPictureInPicture is supported by Chromium & Safari
-          autoPictureInPicture="true"
         />
 
         {!isRealTrack && (

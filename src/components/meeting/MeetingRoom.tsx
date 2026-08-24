@@ -57,10 +57,10 @@ import {
   VolumeX,
   MessageSquare,
   Unlock,
-  PictureInPicture,
-  PhoneOff,
+  PictureInPicture2,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
+import { MiniMeetingWindow } from "./MiniMeetingWindow";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
 
 export const ZOOM_HD_AUDIO_OPTIONS = {
@@ -124,12 +124,12 @@ function MeetingRoomInner({
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isFocusView, setIsFocusView] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isMiniWindow, setIsMiniWindow] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("user");
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [permissionMediaType, setPermissionMediaType] = useState<"camera" | "microphone" | "both">("both");
   const [permissionError, setPermissionError] = useState<string | null>(null);
-  const [showExitModal, setShowExitModal] = useState(false);
 
   // Social Proof Booster (fuser) & Webinar Lock State
   const [fuserCount, setFuserCount] = useState(fakeUserCount || 200);
@@ -258,66 +258,6 @@ function MeetingRoomInner({
     };
   }, []);
 
-  // Default Browser Chrome/Safari Picture-in-Picture Trigger
-  const openBrowserDefaultPiP = useCallback(async () => {
-    try {
-      const videos = Array.from(document.querySelectorAll("video"));
-      const activeVideo =
-        videos.find(v => (v.srcObject as MediaStream)?.active || v.videoWidth > 0) ||
-        videos[0];
-      if (activeVideo && document.pictureInPictureEnabled && !document.pictureInPictureElement) {
-        await activeVideo.requestPictureInPicture();
-      }
-    } catch (err) {
-      console.warn("Browser native PiP notice:", err);
-    }
-  }, []);
-
-  // Intercept Browser Back button: show option to leave or open Chrome PiP popup window
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      window.history.pushState({ meetingActive: true }, "", window.location.href);
-    } catch {
-      // ignore
-    }
-
-    const handlePopState = () => {
-      setShowExitModal(true);
-      try {
-        window.history.pushState({ meetingActive: true }, "", window.location.href);
-      } catch {
-        // ignore
-      }
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, []);
-
-  // Trigger default Chrome PiP window when clicking middle home button, switching tabs/apps, or minimizing browser
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        openBrowserDefaultPiP();
-      }
-    };
-
-    const handlePageHide = () => {
-      openBrowserDefaultPiP();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pagehide", handlePageHide);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pagehide", handlePageHide);
-    };
-  }, [openBrowserDefaultPiP]);
-
   const requestFullscreenPolyfill = async (el: HTMLElement) => {
     try {
       if (el.requestFullscreen) {
@@ -431,6 +371,20 @@ function MeetingRoomInner({
       console.warn("Fullscreen toggle notice:", err);
       setIsFullscreen(prev => !prev);
     }
+  };
+
+  const handleToggleMiniWindow = async () => {
+    try {
+      const videoEl = document.querySelector("video") as HTMLVideoElement | null;
+      if (document.pictureInPictureEnabled && videoEl && !document.pictureInPictureElement) {
+        await videoEl.requestPictureInPicture();
+        return;
+      }
+    } catch (e) {
+      console.warn("Native PiP notice:", e);
+    }
+    // Fallback or explicit In-App Pop-up Window
+    setIsMiniWindow(prev => !prev);
   };
 
   // Initialize Krisp AI Deep-Learning Noise Filter
@@ -1231,6 +1185,15 @@ function MeetingRoomInner({
 
           <button
             type="button"
+            onClick={handleToggleMiniWindow}
+            className="flex items-center justify-center h-7.5 w-7.5 sm:h-8 sm:w-8 rounded-full bg-slate-900/90 hover:bg-slate-800 text-indigo-300 border border-indigo-500/30 backdrop-blur-md transition active:scale-95 cursor-pointer shadow-md"
+            title="Pop-up Window (Picture-in-Picture)"
+          >
+            <PictureInPicture2 className="h-3.5 w-3.5" />
+          </button>
+
+          <button
+            type="button"
             onClick={toggleFullscreen}
             className="flex items-center justify-center h-7.5 w-7.5 sm:h-8 sm:w-8 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-white/10 backdrop-blur-md transition active:scale-95 cursor-pointer shadow-md"
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
@@ -1239,6 +1202,22 @@ function MeetingRoomInner({
           </button>
         </div>
       </div>
+
+      {/* Floating In-App Mini Pop-up Window */}
+      {isMiniWindow && (
+        <MiniMeetingWindow
+          meetingTitle={meetingTitle}
+          roomName={roomName}
+          elapsedSeconds={elapsedSeconds}
+          activeTrack={allParticipantTiles[0]}
+          isMuted={!localParticipant?.isMicrophoneEnabled}
+          isVideoMuted={!localParticipant?.isCameraEnabled}
+          onToggleMic={handleToggleMic}
+          onToggleVideo={handleToggleVideo}
+          onExpand={() => setIsMiniWindow(false)}
+          onLeave={onLeave}
+        />
+      )}
 
       {/* Host Waiting Room Banner */}
       {isHost && (
@@ -1336,9 +1315,10 @@ function MeetingRoomInner({
         onToggleParticipants={() => setIsParticipantsOpen(!isParticipantsOpen)}
         onToggleViewMode={() => setIsFocusView(!isFocusView)}
         onSendReaction={handleSendReaction}
-        onLeaveMeeting={() => setShowExitModal(true)}
+        onLeaveMeeting={onLeave}
         onEndMeetingForAll={isHost ? handleEndMeetingForAll : undefined}
         onCopyLink={handleCopyMeetingLink}
+        onToggleMiniWindow={handleToggleMiniWindow}
         isRecording={isRecording}
         onToggleRecord={() => setIsRecording(!isRecording)}
         onFlipCamera={handleFlipCamera}
@@ -1545,72 +1525,6 @@ function MeetingRoomInner({
           </div>
         </Modal>
       )}
-
-      {/* 🚀 Exit or Show in Popup Window Modal */}
-      <Modal
-        isOpen={showExitModal}
-        onClose={() => setShowExitModal(false)}
-        title="Leave Meeting or Show in Popup?"
-        description="Choose how you would like to proceed with this meeting."
-        maxWidth="md"
-      >
-        <div className="space-y-4 pt-2 font-[Poppins,sans-serif]">
-          <p className="text-xs sm:text-sm text-slate-600">
-            You can keep watching and listening to the meeting in Chrome&apos;s floating Picture-in-Picture window, or leave the meeting.
-          </p>
-
-          <div className="flex flex-col gap-2.5">
-            {/* Primary Action: Open Chrome Native Picture-in-Picture on User Click */}
-            <button
-              type="button"
-              onClick={async () => {
-                setShowExitModal(false);
-                await openBrowserDefaultPiP();
-              }}
-              className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 p-3.5 text-xs sm:text-sm font-bold text-white shadow-lg transition active:scale-98 cursor-pointer"
-            >
-              <PictureInPicture className="w-4.5 h-4.5" />
-              <span>Show in Chrome Popup Window (PiP)</span>
-            </button>
-
-            {/* Leave Room Action */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowExitModal(false);
-                onLeave();
-              }}
-              className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs sm:text-sm font-bold text-rose-600 hover:bg-rose-100 transition active:scale-98 cursor-pointer"
-            >
-              <PhoneOff className="w-4 h-4" />
-              <span>Leave Meeting</span>
-            </button>
-
-            {/* End Meeting for All (if host) */}
-            {isHost && (
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExitModal(false);
-                  handleEndMeetingForAll();
-                }}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 p-2.5 text-xs font-bold text-white transition active:scale-98 cursor-pointer"
-              >
-                <span>End Meeting for All</span>
-              </button>
-            )}
-
-            {/* Cancel & Stay */}
-            <button
-              type="button"
-              onClick={() => setShowExitModal(false)}
-              className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-700 cursor-pointer"
-            >
-              Cancel & Stay in Meeting
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Mobile Permission Modal */}
       <PermissionModal
