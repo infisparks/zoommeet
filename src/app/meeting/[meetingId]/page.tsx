@@ -159,6 +159,7 @@ export default function MeetingRoomPage({ params }: PageProps) {
         isVideoLocked={meeting?.isVideoLocked}
         onlyShowHost={meeting?.onlyShowHost ?? true}
         showCommentPopup={meeting?.showCommentPopup ?? false}
+        isChatLocked={meeting?.isChatLocked ?? false}
         onLeave={handleLeave}
       />
     );

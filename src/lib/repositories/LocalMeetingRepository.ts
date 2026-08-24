@@ -122,6 +122,7 @@ export class LocalMeetingRepository implements MeetingRepository {
       maxParticipants: input.maxParticipants || 50,
       onlyShowHost: input.onlyShowHost ?? true,
       showCommentPopup: input.showCommentPopup ?? false,
+      isChatLocked: input.isChatLocked ?? false,
       fakeUserCount: input.fakeUserCount,
       isVoiceLocked: input.isVoiceLocked,
       isVideoLocked: input.isVideoLocked,

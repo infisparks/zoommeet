@@ -38,6 +38,7 @@ export interface Meeting {
   fakeUserCount?: number;
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;
+  isChatLocked?: boolean;
   createdAt: string;
   updatedAt?: string;
 }

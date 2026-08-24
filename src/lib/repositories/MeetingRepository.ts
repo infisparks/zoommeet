@@ -16,6 +16,7 @@ export interface CreateMeetingInput {
   maxParticipants?: number;
   onlyShowHost?: boolean;
   showCommentPopup?: boolean;
+  isChatLocked?: boolean;
   fakeUserCount?: number;
   isVoiceLocked?: boolean;
   isVideoLocked?: boolean;

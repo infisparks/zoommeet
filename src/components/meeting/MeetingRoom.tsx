@@ -56,6 +56,7 @@ import {
   Crown,
   VolumeX,
   MessageSquare,
+  Unlock,
 } from "lucide-react";
 import { PermissionModal } from "./PermissionModal";
 import { VirtualParticipant, generateFUsers } from "@/lib/indianNames";
@@ -81,6 +82,7 @@ interface MeetingRoomProps {
   isVideoLocked?: boolean;
   onlyShowHost?: boolean;
   showCommentPopup?: boolean;
+  isChatLocked?: boolean;
   onLeave: () => void;
 }
 
@@ -95,6 +97,7 @@ function MeetingRoomInner({
   isVideoLocked = false,
   onlyShowHost = true,
   showCommentPopup = false,
+  isChatLocked = false,
   onLeave,
 }: {
   roomName: string;
@@ -107,6 +110,7 @@ function MeetingRoomInner({
   isVideoLocked?: boolean;
   onlyShowHost?: boolean;
   showCommentPopup?: boolean;
+  isChatLocked?: boolean;
   onLeave: () => void;
 }) {
   const connectionState = useConnectionState();
@@ -133,6 +137,7 @@ function MeetingRoomInner({
   const [videoLocked, setVideoLocked] = useState(!!isVideoLocked);
   const [onlyShowHostState, setOnlyShowHostState] = useState(onlyShowHost ?? true);
   const [showCommentPopupState, setShowCommentPopupState] = useState(showCommentPopup ?? false);
+  const [chatLocked, setChatLocked] = useState(!!isChatLocked);
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   const [tempBoosterCount, setTempBoosterCount] = useState(fakeUserCount || 200);
 
@@ -142,12 +147,14 @@ function MeetingRoomInner({
   const [adminVideoLock, setAdminVideoLock] = useState(!!isVideoLocked);
   const [adminOnlyShowHost, setAdminOnlyShowHost] = useState(onlyShowHost ?? true);
   const [adminShowCommentPopup, setAdminShowCommentPopup] = useState(showCommentPopup ?? false);
+  const [adminChatLock, setAdminChatLock] = useState(!!isChatLocked);
   const [adminBoosterCount, setAdminBoosterCount] = useState(fakeUserCount || 200);
   const [isCameraTransitioning, setIsCameraTransitioning] = useState(false);
 
   // Real-time State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [commentPopups, setCommentPopups] = useState<CommentPopupItem[]>([]);
+  const [lockToast, setLockToast] = useState<{ message: string; type: "locked" | "unlocked" } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [reactions, setReactions] = useState<ReactionItem[]>([]);
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
@@ -174,6 +181,17 @@ function MeetingRoomInner({
       setCommentPopups(prev => prev.filter(p => p.id !== id));
     }, 2000);
   }, [showCommentPopupState]);
+
+  // Trigger small Lock/Unlock Notification Toast on Screen
+  const triggerLockToast = useCallback((locked: boolean) => {
+    setLockToast({
+      message: locked ? "Comments have been locked by the host" : "Comments have been unlocked by the host",
+      type: locked ? "locked" : "unlocked",
+    });
+    setTimeout(() => {
+      setLockToast(null);
+    }, 2800);
+  }, []);
 
   // Meeting Duration Timer & Fullscreen/Auto-Hide Controls
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -469,6 +487,12 @@ function MeetingRoomInner({
         }
         if (typeof data.showCommentPopup === "boolean") {
           setShowCommentPopupState(data.showCommentPopup);
+        }
+        if (typeof data.chatLocked === "boolean") {
+          if (data.chatLocked !== chatLocked) {
+            triggerLockToast(data.chatLocked);
+          }
+          setChatLocked(data.chatLocked);
         }
         if (typeof data.fuserCount === "number") {
           setFuserCount(data.fuserCount);
@@ -775,6 +799,10 @@ function MeetingRoomInner({
 
   const handleSendMessage = (text: string) => {
     if (!localParticipant) return;
+    if (chatLocked && !isHost && !coHosts.includes(localParticipant.identity)) {
+      alert("Comments are currently locked by the host.");
+      return;
+    }
     const senderName = localParticipant.name || "Participant";
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}-${Math.random()}`,
@@ -798,6 +826,38 @@ function MeetingRoomInner({
       timestamp: newMsg.timestamp,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
+  };
+
+  const handleToggleChatLock = async () => {
+    if (!isHost) return;
+    const newLocked = !chatLocked;
+    setChatLocked(newLocked);
+    setAdminChatLock(newLocked);
+    triggerLockToast(newLocked);
+
+    const payload = JSON.stringify({
+      type: "room_settings_update",
+      voiceLocked,
+      videoLocked,
+      onlyShowHost: onlyShowHostState,
+      showCommentPopup: showCommentPopupState,
+      chatLocked: newLocked,
+      fuserCount,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+
+    try {
+      await api.updateMeetingLocks(roomName, {
+        isVoiceLocked: voiceLocked,
+        isVideoLocked: videoLocked,
+        onlyShowHost: onlyShowHostState,
+        showCommentPopup: showCommentPopupState,
+        isChatLocked: newLocked,
+        fakeUserCount: fuserCount,
+      });
+    } catch (e) {
+      console.warn("Meeting locks backend sync notice:", e);
+    }
   };
 
   const handleEndMeetingForAll = () => {
@@ -829,43 +889,36 @@ function MeetingRoomInner({
   };
 
   const handleMakeCoHost = (identity: string) => {
-    const isAlready = coHosts.includes(identity);
-    const newStatus = !isAlready;
-    setCoHosts(prev =>
-      newStatus ? [...prev, identity] : prev.filter(id => id !== identity)
-    );
+    const isNowCoHost = !coHosts.includes(identity);
+    setCoHosts(prev => (isNowCoHost ? [...prev, identity] : prev.filter(id => id !== identity)));
     const payload = JSON.stringify({
       type: "cohost_toggle",
       identity,
-      isCoHost: newStatus,
+      isCoHost: isNowCoHost,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
   };
 
-  const handleToggleMicPermission = (targetIdentity: string, allow: boolean) => {
-    setAllowedMicUsers(prev =>
-      allow ? (prev.includes(targetIdentity) ? prev : [...prev, targetIdentity]) : prev.filter(id => id !== targetIdentity)
-    );
+  const handleToggleMicPermission = (identity: string, allow: boolean) => {
+    setAllowedMicUsers(prev => (allow ? [...prev, identity] : prev.filter(id => id !== identity)));
     const payload = JSON.stringify({
       type: "user_mic_permission_toggle",
-      identity: targetIdentity,
+      identity,
       allowed: allow,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
 
     if (!allow) {
-      const mutePayload = JSON.stringify({ type: "force_mute", targetIdentity });
-      send(new TextEncoder().encode(mutePayload), { reliable: true });
+      const lockPayload = JSON.stringify({ type: "force_mute", targetIdentity: identity });
+      send(new TextEncoder().encode(lockPayload), { reliable: true });
     }
   };
 
-  const handleToggleVideoPermission = (targetIdentity: string, allow: boolean) => {
-    setAllowedVideoUsers(prev =>
-      allow ? (prev.includes(targetIdentity) ? prev : [...prev, targetIdentity]) : prev.filter(id => id !== targetIdentity)
-    );
+  const handleToggleVideoPermission = (identity: string, allow: boolean) => {
+    setAllowedVideoUsers(prev => (allow ? [...prev, identity] : prev.filter(id => id !== identity)));
     const payload = JSON.stringify({
       type: "user_video_permission_toggle",
-      identity: targetIdentity,
+      identity,
       allowed: allow,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
@@ -890,6 +943,7 @@ function MeetingRoomInner({
     setAdminVideoLock(videoLocked);
     setAdminOnlyShowHost(onlyShowHostState);
     setAdminShowCommentPopup(showCommentPopupState);
+    setAdminChatLock(chatLocked);
     setAdminBoosterCount(fuserCount);
     setShowAdminModal(true);
   };
@@ -899,6 +953,10 @@ function MeetingRoomInner({
     setVideoLocked(adminVideoLock);
     setOnlyShowHostState(adminOnlyShowHost);
     setShowCommentPopupState(adminShowCommentPopup);
+    setChatLocked(adminChatLock);
+    if (adminChatLock !== chatLocked) {
+      triggerLockToast(adminChatLock);
+    }
     setFuserCount(adminBoosterCount);
     setFakeUsers(generateFUsers(adminBoosterCount, roomName));
     setShowAdminModal(false);
@@ -918,6 +976,7 @@ function MeetingRoomInner({
       videoLocked: adminVideoLock,
       onlyShowHost: adminOnlyShowHost,
       showCommentPopup: adminShowCommentPopup,
+      chatLocked: adminChatLock,
       fuserCount: adminBoosterCount,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
@@ -929,6 +988,7 @@ function MeetingRoomInner({
         isVideoLocked: adminVideoLock,
         onlyShowHost: adminOnlyShowHost,
         showCommentPopup: adminShowCommentPopup,
+        isChatLocked: adminChatLock,
         fakeUserCount: adminBoosterCount,
       });
     } catch (e) {
@@ -1137,6 +1197,24 @@ function MeetingRoomInner({
       {/* Floating 2-Second Comment Popups Overlay */}
       <CommentPopupOverlay popups={commentPopups} />
 
+      {/* Floating System Lock / Unlock Toast Notification */}
+      {lockToast && (
+        <div
+          className={`fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-2xl backdrop-blur-2xl border animate-in slide-in-from-top-4 fade-in duration-200 pointer-events-none select-none font-[Poppins,sans-serif] ${
+            lockToast.type === "locked"
+              ? "bg-rose-950/90 border-rose-500/50 text-rose-200 shadow-rose-950/50"
+              : "bg-emerald-950/90 border-emerald-500/50 text-emerald-200 shadow-emerald-950/50"
+          }`}
+        >
+          {lockToast.type === "locked" ? (
+            <Lock className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+          ) : (
+            <Unlock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          )}
+          <span>{lockToast.message}</span>
+        </div>
+      )}
+
       {/* Floating Reactions Overlay */}
       <ReactionsOverlay reactions={reactions} />
 
@@ -1183,6 +1261,9 @@ function MeetingRoomInner({
         messages={messages}
         onSendMessage={handleSendMessage}
         currentUserId={localParticipant?.identity || "me"}
+        isChatLocked={chatLocked}
+        isCurrentUserHost={isHost}
+        onToggleChatLock={isHost ? handleToggleChatLock : undefined}
       />
 
       <MeetingParticipants
@@ -1289,7 +1370,26 @@ function MeetingRoomInner({
               />
             </div>
 
-            {/* 5. Audience Capacity & Participant Scaling */}
+            {/* 5. Chat / Comment Lock (Mute Messages) */}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 border border-amber-100 shrink-0">
+                  <Lock className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900">Chat / Comment Lock (Mute Messages)</p>
+                  <p className="text-[11px] text-slate-500">When checked, attendees cannot send comments. Only Host can send messages.</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={adminChatLock}
+                onChange={e => setAdminChatLock(e.target.checked)}
+                className="h-4.5 w-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {/* 6. Audience Capacity & Participant Scaling */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1380,6 +1480,7 @@ export function MeetingRoom({
   isVideoLocked = false,
   onlyShowHost = true,
   showCommentPopup = false,
+  isChatLocked = false,
   onLeave,
 }: MeetingRoomProps) {
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -1472,6 +1573,7 @@ export function MeetingRoom({
         isVideoLocked={isVideoLocked}
         onlyShowHost={onlyShowHost}
         showCommentPopup={showCommentPopup}
+        isChatLocked={isChatLocked}
         onLeave={onLeave}
       />
     </LiveKitRoom>

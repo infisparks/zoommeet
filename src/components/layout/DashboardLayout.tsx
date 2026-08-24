@@ -40,6 +40,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
   const [isVideoLocked, setIsVideoLocked] = useState(false);
   const [onlyShowHost, setOnlyShowHost] = useState(true);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
+  const [isChatLocked, setIsChatLocked] = useState(false);
   const [fakeUserCount, setFakeUserCount] = useState(200);
   const [enableBooster, setEnableBooster] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -69,6 +70,7 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
         isVideoLocked,
         onlyShowHost,
         showCommentPopup,
+        isChatLocked,
         isWebinar: isVoiceLocked && isVideoLocked,
         fakeUserCount: enableBooster ? fakeUserCount : 0,
       });
@@ -201,6 +203,25 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
                   type="checkbox"
                   checked={showCommentPopup}
                   onChange={e => setShowCommentPopup(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Chat / Comment Lock */}
+              <div className="flex items-center justify-between border-t border-slate-200/60 pt-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-slate-900">Chat / Comment Lock</p>
+                    <p className="text-[11px] text-slate-500">Mute comments for attendees. Only host can send messages.</p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isChatLocked}
+                  onChange={e => setIsChatLocked(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
               </div>
