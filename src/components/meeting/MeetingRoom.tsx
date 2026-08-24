@@ -170,9 +170,15 @@ function MeetingRoomInner({
   const [waitingUsers, setWaitingUsers] = useState<WaitingUser[]>([]);
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
 
+  // Sync ref for showCommentPopupState to prevent stale closures
+  const showCommentPopupRef = useRef(showCommentPopup ?? false);
+  useEffect(() => {
+    showCommentPopupRef.current = showCommentPopupState;
+  }, [showCommentPopupState]);
+
   // Trigger 2-second Comment Popup on Screen when enabled
   const triggerCommentPopup = useCallback((senderName: string, message: string) => {
-    if (!showCommentPopupState) return;
+    if (!showCommentPopupRef.current) return;
     const id = `popup-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const newItem: CommentPopupItem = {
       id,
@@ -186,7 +192,7 @@ function MeetingRoomInner({
     setTimeout(() => {
       setCommentPopups(prev => prev.filter(p => p.id !== id));
     }, 2000);
-  }, [showCommentPopupState]);
+  }, []);
 
   // Trigger small Lock/Unlock Notification Toast on Screen
   const triggerLockToast = useCallback((locked: boolean) => {
@@ -545,6 +551,7 @@ function MeetingRoomInner({
         }
         if (typeof data.showCommentPopup === "boolean") {
           setShowCommentPopupState(data.showCommentPopup);
+          showCommentPopupRef.current = data.showCommentPopup;
         }
         if (typeof data.chatLocked === "boolean") {
           if (data.chatLocked !== chatLocked) {
@@ -618,7 +625,7 @@ function MeetingRoomInner({
     } catch (e) {
       console.warn("Error decoding data channel packet", e);
     }
-  }, [roomName, isChatOpen, localParticipant, isHost, onLeave]);
+  }, [roomName, isChatOpen, localParticipant, isHost, onLeave, triggerCommentPopup]);
 
   const { send } = useDataChannel(onDataReceived);
 
@@ -1072,6 +1079,7 @@ function MeetingRoomInner({
     setVideoLocked(adminVideoLock);
     setOnlyShowHostState(adminOnlyShowHost);
     setShowCommentPopupState(adminShowCommentPopup);
+    showCommentPopupRef.current = adminShowCommentPopup;
     setChatLocked(adminChatLock);
     if (adminChatLock !== chatLocked) {
       triggerLockToast(adminChatLock);

@@ -466,15 +466,22 @@ export function MeetingChat({
         <>
           {/* Action Toolbar & Emoji Bar */}
           <div className="flex items-center justify-between border-t border-white/5 px-3 py-1.5 bg-black/30">
-            <button
-              type="button"
-              onClick={() => setShowCardModal(!showCardModal)}
-              className="flex items-center gap-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 px-2 py-1 text-[10px] font-black text-amber-300 transition cursor-pointer"
-              title="Send interactive offer / CTA button card"
-            >
-              <Zap className="w-3 h-3 fill-current text-amber-400" />
-              <span>CTA Card / Offer</span>
-            </button>
+            {isCurrentUserHost ? (
+              <button
+                type="button"
+                onClick={() => setShowCardModal(!showCardModal)}
+                className="flex items-center gap-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 px-2 py-1 text-[10px] font-black text-amber-300 transition cursor-pointer"
+                title="Send interactive offer / CTA button card"
+              >
+                <Zap className="w-3 h-3 fill-current text-amber-400" />
+                <span>CTA Card / Offer</span>
+              </button>
+            ) : (
+              <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                <MessageSquare className="w-3 h-3 text-slate-400" />
+                <span>Live Chat</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-1">
               {["👍", "🔥", "❤️", "🚀", "🎉"].map(em => (
