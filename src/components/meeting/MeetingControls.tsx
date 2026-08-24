@@ -110,11 +110,14 @@ export function MeetingControls({
     <>
       {/* Floating Bottom Control Bar with Auto-Hide Transition */}
       <div
-        className={`fixed bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center w-full px-2 sm:px-0 sm:w-auto max-w-[100vw] sm:max-w-[96vw] pb-[env(safe-area-inset-bottom,0px)] select-none transition-all duration-300 ${
+        className={`fixed left-1/2 -translate-x-1/2 z-30 flex items-center justify-center w-full px-2 sm:px-0 sm:w-auto max-w-[100vw] sm:max-w-[96vw] select-none transition-all duration-300 ${
           isVisible
             ? "opacity-100 translate-y-0 pointer-events-auto"
             : "opacity-0 translate-y-10 pointer-events-none"
         }`}
+        style={{
+          bottom: "max(0.5rem, calc(env(safe-area-inset-bottom, 0px) + 0.25rem))",
+        }}
       >
         <div className="glass-control-bar flex items-center justify-between sm:justify-center gap-1 sm:gap-2 rounded-2xl px-2 sm:px-4 py-2 text-white w-full sm:w-auto shadow-2xl border border-white/10 backdrop-blur-2xl bg-[#0E1628]/95">
           

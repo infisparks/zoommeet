@@ -211,24 +211,47 @@ function MeetingRoomInner({
     }, 3500);
   }, []);
 
-  // Lock body/html scroll on mount to prevent any unwanted scrolling in meeting room / fullscreen
+  // Lock body/html scroll and handle iOS Safari rotation/viewport changes
   useEffect(() => {
     if (typeof document === "undefined") return;
+
+    // Apply strict meeting lock class to body
+    document.body.classList.add("meeting-active");
+    document.documentElement.classList.add("meeting-active");
+
     const origBodyOverflow = document.body.style.overflow;
     const origHtmlOverflow = document.documentElement.style.overflow;
-    const origBodyOverscroll = document.body.style.overscrollBehavior;
-    const origHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+    const origBodyPosition = document.body.style.position;
+    const origBodyWidth = document.body.style.width;
+    const origBodyHeight = document.body.style.height;
 
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-    document.body.style.overscrollBehavior = "none";
-    document.documentElement.style.overscrollBehavior = "none";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.height = "100%";
+
+    // Handle iOS Safari orientation changes & bar hiding
+    const handleViewportReset = () => {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    };
+
+    handleViewportReset();
+    window.addEventListener("orientationchange", handleViewportReset, { passive: true });
+    window.addEventListener("resize", handleViewportReset, { passive: true });
 
     return () => {
+      document.body.classList.remove("meeting-active");
+      document.documentElement.classList.remove("meeting-active");
       document.body.style.overflow = origBodyOverflow;
       document.documentElement.style.overflow = origHtmlOverflow;
-      document.body.style.overscrollBehavior = origBodyOverscroll;
-      document.documentElement.style.overscrollBehavior = origHtmlOverscroll;
+      document.body.style.position = origBodyPosition;
+      document.body.style.width = origBodyWidth;
+      document.body.style.height = origBodyHeight;
+      window.removeEventListener("orientationchange", handleViewportReset);
+      window.removeEventListener("resize", handleViewportReset);
     };
   }, []);
 
@@ -1074,11 +1097,16 @@ function MeetingRoomInner({
 
       {/* Minimal Floating Top Pill (Auto-Hides) */}
       <div
-        className={`absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex items-center justify-between pointer-events-none transition-all duration-300 ${
+        className={`absolute z-20 flex items-center justify-between pointer-events-none transition-all duration-300 ${
           showControls
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-8 pointer-events-none"
         }`}
+        style={{
+          top: "max(0.5rem, env(safe-area-inset-top, 0px))",
+          left: "max(0.5rem, env(safe-area-inset-left, 0px))",
+          right: "max(0.5rem, env(safe-area-inset-right, 0px))",
+        }}
       >
         {/* Minimal Meeting Info */}
         <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-3.5 py-1.5 border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg text-xs">
@@ -1548,7 +1576,17 @@ export function MeetingRoom({
         dynacast: true,
       }}
       data-lk-theme="default"
-      className="h-[100dvh] w-screen bg-[#070B14]"
+      className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#070B14] touch-none overscroll-none"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100%",
+        height: "100dvh",
+        overflow: "hidden",
+      }}
       onError={err => {
         const msg = err?.message || "";
         if (

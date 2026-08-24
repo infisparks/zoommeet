@@ -1,13 +1,31 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { branding } from "@/config/branding";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  themeColor: "#070B14",
+};
 
 export const metadata: Metadata = {
   title: `${branding.appName} - Video Conferencing & Team Collaboration`,
   description: branding.tagline,
   icons: {
     icon: "/favicon.ico",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: branding.appName,
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
