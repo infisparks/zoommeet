@@ -27,11 +27,8 @@ import {
   Minimize,
   Lock,
   PictureInPicture2,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import { AudioDeviceMenu } from "./AudioDeviceMenu";
-import { YoutubeIcon } from "./SharedVideoPlayer";
 
 interface MeetingControlsProps {
   isMuted: boolean;
@@ -39,9 +36,6 @@ interface MeetingControlsProps {
   isMicLocked?: boolean;
   isVideoLocked?: boolean;
   isScreenSharing: boolean;
-  isScreenAudioActive?: boolean;
-  isScreenAudioMuted?: boolean;
-  shareSystemAudio?: boolean;
   isHandRaised: boolean;
   isChatOpen: boolean;
   isParticipantsOpen: boolean;
@@ -54,10 +48,7 @@ interface MeetingControlsProps {
   isFullscreen?: boolean;
   onToggleMic: () => void;
   onToggleVideo: () => void;
-  onToggleScreenShare: (withAudio?: boolean) => void;
-  onToggleScreenAudioMute?: () => void;
-  onSetShareSystemAudio?: (enabled: boolean) => void;
-  onOpenYouTubeShare?: () => void;
+  onToggleScreenShare: () => void;
   onToggleHand: () => void;
   onToggleChat: () => void;
   onToggleParticipants: () => void;
@@ -80,9 +71,6 @@ export function MeetingControls({
   isMicLocked = false,
   isVideoLocked = false,
   isScreenSharing,
-  isScreenAudioActive = false,
-  isScreenAudioMuted = false,
-  shareSystemAudio = true,
   isHandRaised,
   isChatOpen,
   isParticipantsOpen,
@@ -95,9 +83,6 @@ export function MeetingControls({
   onToggleMic,
   onToggleVideo,
   onToggleScreenShare,
-  onToggleScreenAudioMute,
-  onSetShareSystemAudio,
-  onOpenYouTubeShare,
   onToggleHand,
   onToggleChat,
   onToggleParticipants,
@@ -114,7 +99,6 @@ export function MeetingControls({
   const [showLeaveMenu, setShowLeaveMenu] = useState(false);
   const [showMobileMore, setShowMobileMore] = useState(false);
   const [showAudioDevices, setShowAudioDevices] = useState(false);
-  const [showScreenShareMenu, setShowScreenShareMenu] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -204,124 +188,20 @@ export function MeetingControls({
             <span className="hidden sm:inline mt-0.5 text-[11px] font-medium">{isVideoLocked ? "Locked" : isVideoMuted ? "Start" : "Stop"}</span>
           </button>
 
-          {/* 3. Screen Share (Desktop Only) with System Audio Option */}
-          <div className="relative hidden md:flex items-center shrink-0">
-            <button
-              type="button"
-              onClick={() => onToggleScreenShare()}
-              className={`relative flex flex-col items-center justify-center h-13 w-14 ${
-                !isScreenSharing ? "rounded-l-xl" : "rounded-xl"
-              } text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation select-none ${
-                isScreenSharing
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30"
-                  : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
-              }`}
-              title={
-                isScreenSharing
-                  ? "Stop Sharing Screen"
-                  : shareSystemAudio
-                  ? "Share Screen with System & Video Audio"
-                  : "Share Screen"
-              }
-            >
-              {isScreenSharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
-              <span className="mt-0.5 text-[11px] font-medium">{isScreenSharing ? "Sharing" : "Share"}</span>
-              {/* If sharing and system audio is active, show small speaker dot/badge */}
-              {isScreenSharing && isScreenAudioActive && (
-                <span
-                  className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400 text-slate-950 text-[10px] font-bold shadow-xs"
-                  title="PC & Video Audio Active"
-                >
-                  <Volume2 className="w-2.5 h-2.5 text-slate-950" />
-                </span>
-              )}
-            </button>
-
-            {/* Screen Share Options Chevron */}
-            <button
-              type="button"
-              onClick={() => setShowScreenShareMenu(!showScreenShareMenu)}
-              className={`flex items-center justify-center h-13 px-1.5 rounded-r-xl bg-slate-800/70 hover:bg-slate-700 text-slate-300 transition-colors border-l border-white/10 cursor-pointer -ml-1 ${
-                isScreenSharing ? "hidden" : ""
-              }`}
-              title="Screen Share Audio Options (Computer Sound)"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Screen Share Options Dropdown Popover */}
-            {showScreenShareMenu && !isScreenSharing && (
-              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 rounded-2xl border border-white/15 bg-[#0E1628]/98 p-3.5 text-white backdrop-blur-2xl shadow-2xl space-y-2.5 animate-in fade-in zoom-in-95 duration-150 z-50">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <span className="text-xs font-bold text-slate-200">Video & Screen Audio Options</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowScreenShareMenu(false)}
-                    className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onSetShareSystemAudio) {
-                      onSetShareSystemAudio(!shareSystemAudio);
-                    }
-                  }}
-                  className={`w-full flex items-start gap-2.5 p-2.5 rounded-xl text-left text-xs transition-colors cursor-pointer border ${
-                    shareSystemAudio
-                      ? "bg-indigo-600/25 border-indigo-500/50 text-white"
-                      : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
-                  }`}
-                >
-                  <Volume2 className={`w-4 h-4 mt-0.5 shrink-0 ${shareSystemAudio ? "text-emerald-400" : "text-slate-400"}`} />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span>Transmit Computer Audio</span>
-                      {shareSystemAudio && <Check className="w-3.5 h-3.5 text-emerald-400" />}
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                      Captures YouTube, video players & app sounds + keeps your microphone live.
-                    </p>
-                  </div>
-                </button>
-
-                {/* Option 1: Screen Share */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowScreenShareMenu(false);
-                    onToggleScreenShare(shareSystemAudio);
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5"
-                >
-                  <ScreenShare className="w-3.5 h-3.5" />
-                  <span>Share Screen (Chrome Tab / Window)</span>
-                </button>
-
-                {/* Option 2: Direct YouTube Broadcast (100% HD Sound) */}
-                {onOpenYouTubeShare && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowScreenShareMenu(false);
-                      onOpenYouTubeShare();
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-200 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <YoutubeIcon className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Share YouTube Link (100% HD Sound)</span>
-                  </button>
-                )}
-
-                <div className="rounded-lg bg-white/5 p-2 text-[10px] text-slate-400 leading-normal">
-                  💡 <strong className="text-slate-200">Mac/Chrome Tip:</strong> In the browser sharing popup, select <strong className="text-indigo-300">Chrome Tab</strong> and check <strong className="text-indigo-300">Also share tab audio</strong> to stream YouTube sound.
-                </div>
-              </div>
-            )}
-          </div>
+          {/* 3. Screen Share (Desktop Only) */}
+          <button
+            type="button"
+            onClick={onToggleScreenShare}
+            className={`hidden md:flex flex-col items-center justify-center h-13 w-14 rounded-xl text-xs font-semibold transition-transform duration-75 active:scale-90 cursor-pointer touch-manipulation ${
+              isScreenSharing
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                : "bg-slate-800/90 hover:bg-slate-700 text-slate-200"
+            }`}
+            title="Share Screen"
+          >
+            {isScreenSharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
+            <span className="mt-0.5 text-[11px] font-medium">{isScreenSharing ? "Sharing" : "Share"}</span>
+          </button>
 
           {/* 4. Raise Hand (Desktop Only) */}
           <button
@@ -509,16 +389,10 @@ export function MeetingControls({
         </div>
       </div>
 
-      {/* Audio Device Selector Menu (Bluetooth / System / PC Audio) */}
+      {/* Audio Device Selector Menu (Bluetooth / System) */}
       <AudioDeviceMenu
         isOpen={showAudioDevices}
         onClose={() => setShowAudioDevices(false)}
-        shareSystemAudio={shareSystemAudio}
-        onToggleShareSystemAudio={onSetShareSystemAudio}
-        isScreenSharing={isScreenSharing}
-        isScreenAudioActive={isScreenAudioActive}
-        isScreenAudioMuted={isScreenAudioMuted}
-        onToggleScreenAudioMute={onToggleScreenAudioMute}
       />
 
       {/* Mobile "More Options" Bottom Action Sheet */}
@@ -605,7 +479,7 @@ export function MeetingControls({
                 className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 cursor-pointer touch-manipulation active:scale-95 col-span-2 border border-white/10"
               >
                 <Headphones className="h-4.5 w-4.5 text-indigo-400" />
-                <span>Audio & System Sound Settings</span>
+                <span>Audio Devices (Bluetooth / System)</span>
               </button>
 
               {/* Share Screen on Mobile */}
@@ -623,7 +497,7 @@ export function MeetingControls({
                   }`}
                 >
                   <ScreenShare className="h-4.5 w-4.5 text-emerald-400" />
-                  <span>{isScreenSharing ? "Stop Sharing Screen" : "Share Screen (Video & Audio)"}</span>
+                  <span>{isScreenSharing ? "Stop Sharing Screen" : "Share Screen"}</span>
                 </button>
               )}
 
@@ -681,10 +555,23 @@ export function MeetingControls({
                   onToggleViewMode();
                   setShowMobileMore(false);
                 }}
-                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 cursor-pointer touch-manipulation active:scale-95 col-span-2"
+                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 cursor-pointer touch-manipulation active:scale-95"
               >
                 {isFocusView ? <LayoutGrid className="h-4.5 w-4.5 text-blue-400" /> : <Square className="h-4.5 w-4.5 text-blue-400" />}
                 <span>{isFocusView ? "Grid View" : "Speaker Focus"}</span>
+              </button>
+
+              {/* Screen Share on Mobile */}
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleScreenShare();
+                  setShowMobileMore(false);
+                }}
+                className="flex items-center gap-2.5 rounded-xl bg-white/5 p-3 text-xs font-semibold text-slate-200 hover:bg-white/10 col-span-2 cursor-pointer touch-manipulation active:scale-95"
+              >
+                <ScreenShare className="h-4.5 w-4.5 text-indigo-400" />
+                <span>{isScreenSharing ? "Stop Screen Share" : "Share Screen"}</span>
               </button>
             </div>
           </div>
