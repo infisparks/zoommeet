@@ -9,6 +9,8 @@ import {
   useLocalParticipant,
   useConnectionState,
   useDataChannel,
+  useRoomContext,
+  useAudioPlayback,
   RoomAudioRenderer,
   isTrackReference,
   TrackReferenceOrPlaceholder,
@@ -30,6 +32,7 @@ import { MeetingParticipants, ExtendedParticipantInfo } from "./MeetingParticipa
 import { ReactionsOverlay } from "./ReactionsOverlay";
 import { CommentPopupOverlay, CommentPopupItem } from "./CommentPopupOverlay";
 import { HostWaitingRoomBanner, WaitingUser } from "./WaitingRoom";
+import { SharedVideoPlayer, YouTubeShareModal, SharedVideoState } from "./SharedVideoPlayer";
 import { ChatMessage, ReactionItem, ChatInteractiveCard } from "@/types";
 import { chatService } from "@/lib/services";
 import { Button } from "@/components/ui/Button";
@@ -54,6 +57,7 @@ import {
   Shield,
   Sliders,
   Crown,
+  Volume2,
   VolumeX,
   MessageSquare,
   Unlock,
@@ -161,6 +165,31 @@ function MeetingRoomInner({
       localStorage.setItem("zoomeet_share_system_audio", String(enabled));
     }
   };
+
+  // Browser Audio Playback Autoplay Policy Unblocker
+  const room = useRoomContext();
+  const { canPlayAudio, startAudio } = useAudioPlayback(room);
+
+  // Shared YouTube Video State
+  const [sharedVideo, setSharedVideo] = useState<SharedVideoState | null>(null);
+  const [showYouTubeModal, setShowYouTubeModal] = useState(false);
+
+  // Auto-attempt to unblock audio playback on any click or keypress
+  useEffect(() => {
+    if (!canPlayAudio && startAudio) {
+      const handleUserInteraction = () => {
+        startAudio().catch(e => console.warn("Auto startAudio notice:", e));
+      };
+      window.addEventListener("click", handleUserInteraction, { once: true });
+      window.addEventListener("touchstart", handleUserInteraction, { once: true });
+      window.addEventListener("keydown", handleUserInteraction, { once: true });
+      return () => {
+        window.removeEventListener("click", handleUserInteraction);
+        window.removeEventListener("touchstart", handleUserInteraction);
+        window.removeEventListener("keydown", handleUserInteraction);
+      };
+    }
+  }, [canPlayAudio, startAudio]);
 
   // Host Admin Controls Modal State
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -633,6 +662,12 @@ function MeetingRoomInner({
         if (data.identity && data.newName) {
           setCustomNames(prev => ({ ...prev, [data.identity]: data.newName }));
         }
+      } else if (data.type === "shared_video") {
+        if (data.action === "start" && data.videoState) {
+          setSharedVideo(data.videoState);
+        } else if (data.action === "stop") {
+          setSharedVideo(null);
+        }
       }
     } catch (e) {
       console.warn("Error decoding data channel packet", e);
@@ -640,6 +675,32 @@ function MeetingRoomInner({
   }, [roomName, isChatOpen, localParticipant, isHost, onLeave, triggerCommentPopup]);
 
   const { send } = useDataChannel(onDataReceived);
+
+  const handleStartSharedVideo = (url: string) => {
+    if (!localParticipant) return;
+    const newVideoState: SharedVideoState = {
+      url,
+      isPlaying: true,
+      sharerName: localParticipant.name || "Host",
+      sharerIdentity: localParticipant.identity,
+    };
+    setSharedVideo(newVideoState);
+    const payload = JSON.stringify({
+      type: "shared_video",
+      action: "start",
+      videoState: newVideoState,
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+  };
+
+  const handleStopSharedVideo = () => {
+    setSharedVideo(null);
+    const payload = JSON.stringify({
+      type: "shared_video",
+      action: "stop",
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+  };
 
   // Tracks for Camera, Screen Sharing, and Screen Audio
   const tracks = useTracks(
@@ -1380,6 +1441,21 @@ function MeetingRoomInner({
         />
       )}
 
+      {/* Browser Autoplay Audio Unblock Banner */}
+      {!canPlayAudio && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl bg-indigo-600 border border-indigo-400 px-4 py-2 text-xs font-bold text-white shadow-2xl animate-bounce">
+          <Volume2 className="w-4 h-4 animate-pulse" />
+          <span>Meeting audio is paused by your browser</span>
+          <button
+            type="button"
+            onClick={() => startAudio()}
+            className="rounded-xl bg-white px-3 py-1 text-xs font-bold text-indigo-700 hover:bg-slate-100 shadow-md cursor-pointer"
+          >
+            Enable Audio
+          </button>
+        </div>
+      )}
+
       {/* Main Full-Bleed Video Area (Tap to reveal/hide controls) */}
       <div
         onClick={() => {
@@ -1391,7 +1467,13 @@ function MeetingRoomInner({
         }}
         className="relative flex-1 min-h-0 min-w-0 w-full h-full p-1 sm:p-2 cursor-pointer overflow-hidden flex flex-col"
       >
-        {screenShareTrack ? (
+        {sharedVideo ? (
+          <SharedVideoPlayer
+            videoState={sharedVideo}
+            isHost={isHost || sharedVideo.sharerIdentity === localParticipant?.identity}
+            onClose={handleStopSharedVideo}
+          />
+        ) : screenShareTrack ? (
           <ScreenShareView
             screenTrack={screenShareTrack}
             cameraTracks={allParticipantTiles}
@@ -1472,6 +1554,7 @@ function MeetingRoomInner({
         onToggleScreenShare={handleToggleScreenShare}
         onToggleScreenAudioMute={handleToggleScreenAudioMute}
         onSetShareSystemAudio={handleSetShareSystemAudio}
+        onOpenYouTubeShare={isHost ? () => setShowYouTubeModal(true) : undefined}
         onToggleHand={handleToggleHand}
         onToggleChat={() => {
           setIsChatOpen(!isChatOpen);
@@ -1488,6 +1571,13 @@ function MeetingRoomInner({
         onToggleRecord={() => setIsRecording(!isRecording)}
         onFlipCamera={handleFlipCamera}
         onToggleFullscreen={toggleFullscreen}
+      />
+
+      {/* YouTube Direct Broadcast Modal */}
+      <YouTubeShareModal
+        isOpen={showYouTubeModal}
+        onClose={() => setShowYouTubeModal(false)}
+        onStartShare={handleStartSharedVideo}
       />
 
       {/* Slide-out Panels */}

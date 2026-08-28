@@ -31,6 +31,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { AudioDeviceMenu } from "./AudioDeviceMenu";
+import { YoutubeIcon } from "./SharedVideoPlayer";
 
 interface MeetingControlsProps {
   isMuted: boolean;
@@ -56,6 +57,7 @@ interface MeetingControlsProps {
   onToggleScreenShare: (withAudio?: boolean) => void;
   onToggleScreenAudioMute?: () => void;
   onSetShareSystemAudio?: (enabled: boolean) => void;
+  onOpenYouTubeShare?: () => void;
   onToggleHand: () => void;
   onToggleChat: () => void;
   onToggleParticipants: () => void;
@@ -95,6 +97,7 @@ export function MeetingControls({
   onToggleScreenShare,
   onToggleScreenAudioMute,
   onSetShareSystemAudio,
+  onOpenYouTubeShare,
   onToggleHand,
   onToggleChat,
   onToggleParticipants,
@@ -248,9 +251,9 @@ export function MeetingControls({
 
             {/* Screen Share Options Dropdown Popover */}
             {showScreenShareMenu && !isScreenSharing && (
-              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-72 rounded-2xl border border-white/15 bg-[#0E1628]/98 p-3.5 text-white backdrop-blur-2xl shadow-2xl space-y-2.5 animate-in fade-in zoom-in-95 duration-150 z-50">
+              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 rounded-2xl border border-white/15 bg-[#0E1628]/98 p-3.5 text-white backdrop-blur-2xl shadow-2xl space-y-2.5 animate-in fade-in zoom-in-95 duration-150 z-50">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <span className="text-xs font-bold text-slate-200">Screen Share Audio</span>
+                  <span className="text-xs font-bold text-slate-200">Video & Screen Audio Options</span>
                   <button
                     type="button"
                     onClick={() => setShowScreenShareMenu(false)}
@@ -280,22 +283,42 @@ export function MeetingControls({
                       {shareSystemAudio && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                     </div>
                     <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                      Transmits PC sound (videos, apps) along with your microphone voice together.
+                      Captures YouTube, video players & app sounds + keeps your microphone live.
                     </p>
                   </div>
                 </button>
 
+                {/* Option 1: Screen Share */}
                 <button
                   type="button"
                   onClick={() => {
                     setShowScreenShareMenu(false);
                     onToggleScreenShare(shareSystemAudio);
                   }}
-                  className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5"
                 >
                   <ScreenShare className="w-3.5 h-3.5" />
-                  <span>Start Screen Share</span>
+                  <span>Share Screen (Chrome Tab / Window)</span>
                 </button>
+
+                {/* Option 2: Direct YouTube Broadcast (100% HD Sound) */}
+                {onOpenYouTubeShare && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowScreenShareMenu(false);
+                      onOpenYouTubeShare();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-200 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <YoutubeIcon className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Share YouTube Link (100% HD Sound)</span>
+                  </button>
+                )}
+
+                <div className="rounded-lg bg-white/5 p-2 text-[10px] text-slate-400 leading-normal">
+                  💡 <strong className="text-slate-200">Mac/Chrome Tip:</strong> In the browser sharing popup, select <strong className="text-indigo-300">Chrome Tab</strong> and check <strong className="text-indigo-300">Also share tab audio</strong> to stream YouTube sound.
+                </div>
               </div>
             )}
           </div>
