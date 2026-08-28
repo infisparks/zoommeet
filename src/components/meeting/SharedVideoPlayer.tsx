@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Play, X, Sparkles } from "lucide-react";
+import { Play, X, Sparkles, Minimize2, Maximize2, Music, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export function YoutubeIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -17,6 +17,7 @@ export interface SharedVideoState {
   videoId?: string;
   title?: string;
   isPlaying: boolean;
+  isBackground?: boolean;
   currentTime?: number;
   sharerName?: string;
   sharerIdentity?: string;
@@ -33,12 +34,14 @@ interface SharedVideoPlayerProps {
   videoState: SharedVideoState;
   isHost: boolean;
   onClose: () => void;
+  onToggleBackground?: () => void;
 }
 
 export function SharedVideoPlayer({
   videoState,
   isHost,
   onClose,
+  onToggleBackground,
 }: SharedVideoPlayerProps) {
   const videoId = videoState.videoId || extractYouTubeId(videoState.url);
 
@@ -81,6 +84,18 @@ export function SharedVideoPlayer({
           </div>
 
           <div className="flex items-center gap-2">
+            {onToggleBackground && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={onToggleBackground}
+                className="h-8 text-xs font-semibold px-3 shadow-xl cursor-pointer bg-slate-800/90 hover:bg-slate-700 text-white border-white/15"
+                title="Keep playing audio in background while viewing cameras / stage"
+              >
+                <Minimize2 className="w-3.5 h-3.5 mr-1" />
+                <span>Play in Background</span>
+              </Button>
+            )}
             {isHost && (
               <Button
                 size="sm"
@@ -96,6 +111,70 @@ export function SharedVideoPlayer({
         </div>
       </div>
     </div>
+  );
+}
+
+// Floating Background Audio Pill
+export function BackgroundAudioBar({
+  videoState,
+  isHost,
+  onExpand,
+  onClose,
+}: {
+  videoState: SharedVideoState;
+  isHost: boolean;
+  onExpand: () => void;
+  onClose: () => void;
+}) {
+  const videoId = videoState.videoId || extractYouTubeId(videoState.url);
+
+  return (
+    <>
+      {/* Hidden iframe keeping audio alive in background */}
+      {videoId && (
+        <div className="absolute -top-[9999px] -left-[9999px] w-1 h-1 pointer-events-none opacity-0 overflow-hidden">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${typeof window !== "undefined" ? window.location.origin : ""}&rel=0`}
+            title="Background YouTube Audio"
+            allow="autoplay"
+            className="w-1 h-1"
+          />
+        </div>
+      )}
+
+      {/* Floating Pill Banner on Top */}
+      <div className="fixed top-14 sm:top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 rounded-full bg-slate-950/95 border border-rose-500/40 px-4 py-2 text-xs text-white shadow-2xl backdrop-blur-2xl animate-in slide-in-from-top-4 duration-150">
+        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-white animate-pulse">
+          <Music className="w-3 h-3" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold text-slate-200">YouTube Audio Playing:</span>
+          <span className="text-emerald-400 font-bold text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+            Transmitting Live 🔊
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 pl-1 border-l border-white/15">
+          <button
+            type="button"
+            onClick={onExpand}
+            className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Expand to Full Screen Stage"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+          {isHost && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-full text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 transition-colors cursor-pointer"
+              title="Stop Background Audio"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 

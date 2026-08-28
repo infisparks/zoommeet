@@ -32,7 +32,7 @@ import { MeetingParticipants, ExtendedParticipantInfo } from "./MeetingParticipa
 import { ReactionsOverlay } from "./ReactionsOverlay";
 import { CommentPopupOverlay, CommentPopupItem } from "./CommentPopupOverlay";
 import { HostWaitingRoomBanner, WaitingUser } from "./WaitingRoom";
-import { SharedVideoPlayer, YouTubeShareModal, SharedVideoState } from "./SharedVideoPlayer";
+import { SharedVideoPlayer, BackgroundAudioBar, YouTubeShareModal, SharedVideoState } from "./SharedVideoPlayer";
 import { ChatMessage, ReactionItem, ChatInteractiveCard } from "@/types";
 import { chatService } from "@/lib/services";
 import { Button } from "@/components/ui/Button";
@@ -698,6 +698,18 @@ function MeetingRoomInner({
     const payload = JSON.stringify({
       type: "shared_video",
       action: "stop",
+    });
+    send(new TextEncoder().encode(payload), { reliable: true });
+  };
+
+  const handleToggleBackgroundSharedVideo = () => {
+    if (!sharedVideo) return;
+    const nextState = { ...sharedVideo, isBackground: !sharedVideo.isBackground };
+    setSharedVideo(nextState);
+    const payload = JSON.stringify({
+      type: "shared_video",
+      action: "start",
+      videoState: nextState,
     });
     send(new TextEncoder().encode(payload), { reliable: true });
   };
@@ -1456,6 +1468,16 @@ function MeetingRoomInner({
         </div>
       )}
 
+      {/* Background Audio Pill when minimized */}
+      {sharedVideo && sharedVideo.isBackground && (
+        <BackgroundAudioBar
+          videoState={sharedVideo}
+          isHost={isHost || sharedVideo.sharerIdentity === localParticipant?.identity}
+          onExpand={handleToggleBackgroundSharedVideo}
+          onClose={handleStopSharedVideo}
+        />
+      )}
+
       {/* Main Full-Bleed Video Area (Tap to reveal/hide controls) */}
       <div
         onClick={() => {
@@ -1467,10 +1489,11 @@ function MeetingRoomInner({
         }}
         className="relative flex-1 min-h-0 min-w-0 w-full h-full p-1 sm:p-2 cursor-pointer overflow-hidden flex flex-col"
       >
-        {sharedVideo ? (
+        {sharedVideo && !sharedVideo.isBackground ? (
           <SharedVideoPlayer
             videoState={sharedVideo}
             isHost={isHost || sharedVideo.sharerIdentity === localParticipant?.identity}
+            onToggleBackground={handleToggleBackgroundSharedVideo}
             onClose={handleStopSharedVideo}
           />
         ) : screenShareTrack ? (
