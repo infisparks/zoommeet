@@ -8,7 +8,7 @@ import {
   isTrackReference,
 } from "@livekit/components-react";
 import { ParticipantTile } from "./ParticipantTile";
-import { Monitor, StopCircle, Layout, PictureInPicture, EyeOff, Users } from "lucide-react";
+import { Monitor, StopCircle, Layout, PictureInPicture, EyeOff, Users, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface ScreenShareViewProps {
@@ -17,6 +17,7 @@ interface ScreenShareViewProps {
   hostIdentity?: string;
   isCurrentUserHost?: boolean;
   isLocalSharing?: boolean;
+  isScreenAudioActive?: boolean;
   totalAudienceCount?: number;
   onStopShare?: () => void;
 }
@@ -29,6 +30,7 @@ export function ScreenShareView({
   hostIdentity,
   isCurrentUserHost = false,
   isLocalSharing = false,
+  isScreenAudioActive = false,
   totalAudienceCount = 1,
   onStopShare,
 }: ScreenShareViewProps) {
@@ -93,13 +95,21 @@ export function ScreenShareView({
         )}
 
         {/* Small Floating Sharer & Audience Info inside Screen (Top-Left) */}
-        <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 pointer-events-auto max-w-[85%]">
+        <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 pointer-events-auto max-w-[85%] flex-wrap">
           <div className="flex items-center gap-1.5 rounded-full bg-slate-950/85 border border-white/15 px-2.5 py-1 text-[11px] sm:text-xs text-white backdrop-blur-md shadow-lg">
             <Monitor className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400 shrink-0" />
             <span className="truncate">
               <strong className="text-white font-semibold">{sharerName}</strong> is sharing
             </span>
           </div>
+
+          {/* System Audio Active Badge */}
+          {isScreenAudioActive && (
+            <div className="inline-flex items-center gap-1 rounded-full bg-emerald-950/85 border border-emerald-400/30 px-2 py-1 text-[10px] sm:text-[11px] font-bold text-emerald-300 backdrop-blur-md shadow-lg shrink-0">
+              <Volume2 className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span>System Sound Active</span>
+            </div>
+          )}
 
           {totalAudienceCount > 1 && (
             <div className="inline-flex items-center gap-1 rounded-full bg-indigo-950/85 border border-indigo-400/30 px-2 py-1 text-[10px] sm:text-[11px] font-bold text-indigo-200 backdrop-blur-md shadow-lg shrink-0">

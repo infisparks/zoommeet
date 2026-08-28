@@ -146,6 +146,22 @@ function MeetingRoomInner({
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   const [tempBoosterCount, setTempBoosterCount] = useState(fakeUserCount || 200);
 
+  // System & Video Sound Share State (Persisted)
+  const [shareSystemAudio, setShareSystemAudio] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("zoomeet_share_system_audio");
+      return saved !== null ? saved === "true" : true;
+    }
+    return true;
+  });
+
+  const handleSetShareSystemAudio = (enabled: boolean) => {
+    setShareSystemAudio(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zoomeet_share_system_audio", String(enabled));
+    }
+  };
+
   // Host Admin Controls Modal State
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminVoiceLock, setAdminVoiceLock] = useState(!!isVoiceLocked);
@@ -625,11 +641,12 @@ function MeetingRoomInner({
 
   const { send } = useDataChannel(onDataReceived);
 
-  // Tracks for Camera and Screen Sharing
+  // Tracks for Camera, Screen Sharing, and Screen Audio
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
       { source: Track.Source.ScreenShare, withPlaceholder: false },
+      { source: Track.Source.ScreenShareAudio, withPlaceholder: false },
     ],
     { onlySubscribed: false }
   );
@@ -639,6 +656,26 @@ function MeetingRoomInner({
   );
 
   const isLocalScreenSharing = !!localParticipant?.isScreenShareEnabled;
+  const localScreenAudioPub = localParticipant?.getTrackPublication(Track.Source.ScreenShareAudio);
+  const isLocalScreenAudioActive = !!localScreenAudioPub && !localScreenAudioPub.isMuted;
+  const isScreenAudioTransmitting =
+    isLocalScreenAudioActive ||
+    tracks.some(t => t.source === Track.Source.ScreenShareAudio && isTrackReference(t) && !t.publication?.isMuted);
+
+  const isScreenAudioMuted = !!localScreenAudioPub?.isMuted;
+
+  const handleToggleScreenAudioMute = async () => {
+    if (!localParticipant) return;
+    const pub = localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
+    if (pub) {
+      if (pub.isMuted) {
+        await pub.unmute();
+      } else {
+        await pub.mute();
+      }
+    }
+  };
+
   const allParticipantTiles = tracks.filter(t => t.source === Track.Source.Camera);
 
   const handleCopyMeetingLink = () => {
@@ -785,7 +822,7 @@ function MeetingRoomInner({
     }
   };
 
-  const handleToggleScreenShare = async () => {
+  const handleToggleScreenShare = async (forceWithAudio?: boolean) => {
     if (!localParticipant) return;
     const isCoHost = coHosts.includes(localParticipant.identity);
     const hasVideoPermission = isHost || isCoHost || allowedVideoUsers.includes(localParticipant.identity);
@@ -795,9 +832,11 @@ function MeetingRoomInner({
     }
 
     const nextStatus = !localParticipant.isScreenShareEnabled;
+    const withAudio = forceWithAudio !== undefined ? forceWithAudio : shareSystemAudio;
+
     api.logDiagnostic(roomName, {
       action: "screen_share_toggle_click",
-      message: `Toggle screen share: ${nextStatus ? "START" : "STOP"}`,
+      message: `Toggle screen share: ${nextStatus ? "START" : "STOP"} (withAudio: ${withAudio})`,
       participant: localParticipant.identity,
     });
 
@@ -810,10 +849,40 @@ function MeetingRoomInner({
           participant: localParticipant.identity,
         });
       } else {
-        await localParticipant.setScreenShareEnabled(true);
+        if (withAudio) {
+          try {
+            await localParticipant.setScreenShareEnabled(true, {
+              audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+              },
+              systemAudio: "include",
+              selfBrowserSurface: "include",
+              surfaceSwitching: "include",
+              suppressLocalAudioPlayback: false,
+            });
+          } catch (optErr) {
+            console.warn("Screen share advanced audio options fallback:", optErr);
+            try {
+              await localParticipant.setScreenShareEnabled(true, {
+                audio: true,
+                systemAudio: "include",
+              });
+            } catch (basicErr) {
+              console.warn("Screen share audio fallback to video only:", basicErr);
+              await localParticipant.setScreenShareEnabled(true);
+            }
+          }
+        } else {
+          await localParticipant.setScreenShareEnabled(true, {
+            audio: false,
+          });
+        }
+
         api.logDiagnostic(roomName, {
           action: "screen_share_started_success",
-          message: "Screen share started successfully",
+          message: `Screen share started successfully (audio: ${withAudio})`,
           participant: localParticipant.identity,
         });
       }
@@ -1329,6 +1398,7 @@ function MeetingRoomInner({
             hostIdentity={actualHostIdentity}
             isCurrentUserHost={isHost}
             isLocalSharing={isLocalScreenSharing}
+            isScreenAudioActive={isScreenAudioTransmitting}
             totalAudienceCount={totalConnectedCount}
             onStopShare={handleToggleScreenShare}
           />
@@ -1385,6 +1455,9 @@ function MeetingRoomInner({
         isMicLocked={isMicLockedForUser}
         isVideoLocked={isVideoLockedForUser}
         isScreenSharing={!!localParticipant?.isScreenShareEnabled}
+        isScreenAudioActive={isLocalScreenAudioActive}
+        isScreenAudioMuted={isScreenAudioMuted}
+        shareSystemAudio={shareSystemAudio}
         isHandRaised={isLocalHandRaised}
         isChatOpen={isChatOpen}
         isParticipantsOpen={isParticipantsOpen}
@@ -1397,6 +1470,8 @@ function MeetingRoomInner({
         onToggleMic={handleToggleMic}
         onToggleVideo={handleToggleVideo}
         onToggleScreenShare={handleToggleScreenShare}
+        onToggleScreenAudioMute={handleToggleScreenAudioMute}
+        onSetShareSystemAudio={handleSetShareSystemAudio}
         onToggleHand={handleToggleHand}
         onToggleChat={() => {
           setIsChatOpen(!isChatOpen);
